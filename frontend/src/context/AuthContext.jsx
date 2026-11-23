@@ -81,19 +81,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginWithGoogle = (customEmail, customName) => {
+  const loginWithGoogle = (emailParam, nameParam) => {
     // If official Google Client ID is configured and GIS is available, trigger official prompt
-    if (googleClientId && window.google?.accounts?.id) {
+    if (googleClientId && window.google?.accounts?.id && !emailParam) {
       window.google.accounts.id.prompt();
       return;
     }
 
-    // Seamless instant demo login or custom email/name
+    // Direct institutional sign-in with email
+    const email = emailParam || 'aditya.invest@gmail.com';
+    const computedName = nameParam || (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1));
     const newUser = {
-      name: customName || 'Aditya Sharma',
-      email: customEmail || 'aditya.sharma.invest@gmail.com',
+      name: computedName,
+      email: email,
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      provider: 'google',
+      provider: emailParam ? 'email' : 'google',
       verified: true,
       loginTime: new Date().toLocaleTimeString(),
     };

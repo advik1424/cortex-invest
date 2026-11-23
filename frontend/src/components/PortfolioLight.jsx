@@ -180,43 +180,43 @@ export default function PortfolioLight() {
           </div>
 
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F766E] bg-teal-50 border border-teal-200/80 px-3 py-1 rounded-full inline-block mb-3.5">
-            Encrypted Portfolio Vault
+            Private Portfolio
           </span>
 
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Sign In with Google to Access Your Portfolio
+            Sign In to Access Your Portfolio
           </h2>
 
           <p className="text-sm text-slate-600 max-w-lg mx-auto mt-3 leading-relaxed">
-            Your holdings, average prices, real-time returns, and AI single-stock discussion console are end-to-end encrypted and require Google account verification.
+            Track real-time NSE/BSE stock holdings, performance analytics, and dual-engine research on your private positions.
           </p>
 
           {/* Benefits Feature Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8 text-left">
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <ShieldCheck className="w-5 h-5 text-emerald-600 mb-2" />
-              <h4 className="text-xs font-bold text-slate-900">Encrypted Ledger</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Real-time CMP synchronization across NSE/BSE with private storage.</p>
+              <h4 className="text-xs font-bold text-slate-900">Private Ledger</h4>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Real-time CMP synchronization across NSE/BSE with isolated storage.</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <MessageSquare className="w-5 h-5 text-[#0F766E] mb-2" />
-              <h4 className="text-xs font-bold text-slate-900">Discuss Every Stock</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Ask holding queries directly to AI (profit booking, averaging, tax advice).</p>
+              <h4 className="text-xs font-bold text-slate-900">Holding Intelligence</h4>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Deep dive into fundamentals, valuation multiples, and quarterly updates.</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <Activity className="w-5 h-5 text-teal-600 mb-2" />
               <h4 className="text-xs font-bold text-slate-900">Portfolio Health Audit</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Stress test impact of market corrections and weed out dead capital.</p>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Stress test impact of market corrections and sector diversification.</p>
             </div>
           </div>
 
-          {/* Google Sign In Call to Action */}
+          {/* Sign In Call to Action */}
           <div className="max-w-md mx-auto space-y-3">
             <button
               onClick={() => loginWithGoogle()}
-              className="w-full py-3.5 px-5 rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-800 text-sm font-bold flex items-center justify-center gap-3 transition-all shadow-sm hover:shadow"
+              className="w-full py-3 px-5 rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
@@ -229,7 +229,7 @@ export default function PortfolioLight() {
               onClick={() => setAuthModalOpen(true)}
               className="text-xs text-slate-500 hover:text-slate-800 font-semibold underline underline-offset-4"
             >
-              Or sign in with custom Google email address
+              Sign in with email
             </button>
           </div>
         </div>
