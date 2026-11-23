@@ -1,0 +1,24 @@
+services:
+  # Spring Boot Backend Web Service
+  - type: web
+    name: cortex-invest-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: standard
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # React Frontend Static Site
+  - type: web
+    name: cortex-invest-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

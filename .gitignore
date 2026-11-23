@@ -1,0 +1,35 @@
+# Root gitignore for Cortex-Invest
+
+# Backend build outputs
+backend/target/
+**/target/
+*.class
+*.jar
+*.war
+
+# Frontend dependencies & build outputs
+frontend/node_modules/
+**/node_modules/
+frontend/dist/
+**/dist/
+
+# IDE & Editor configs
+.idea/
+.vscode/
+*.iml
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Environment variables & secrets
+.env
+.env.local
+.env.production
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.system_generated/
+scratch/
