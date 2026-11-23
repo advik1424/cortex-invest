@@ -5,6 +5,22 @@ const api = axios.create({
   timeout: 60000,
 });
 
+// Automatically inject logged-in user's email into request headers for private user isolation
+api.interceptors.request.use((config) => {
+  try {
+    const saved = localStorage.getItem('cortex_user');
+    if (saved) {
+      const user = JSON.parse(saved);
+      if (user?.email) {
+        config.headers['X-User-Email'] = user.email;
+      }
+    }
+  } catch (e) {
+    // Ignore storage read error
+  }
+  return config;
+});
+
 export const screenerApi = {
   getData: (ticker) => api.get(`/screener/${ticker}`),
   search: (query) => api.get(`/screener/search?q=${query}`),

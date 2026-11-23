@@ -9,14 +9,7 @@ import com.cortex.invest.service.DualEngineRadarService;
 import com.cortex.invest.service.PortfolioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -28,30 +21,53 @@ public class PortfolioController {
     private final PortfolioService portfolioService;
     private final DualEngineRadarService dualEngineRadarService;
 
+    private String resolveEmail(String headerEmail, String paramEmail) {
+        if (headerEmail != null && !headerEmail.isBlank()) return headerEmail.trim().toLowerCase();
+        if (paramEmail != null && !paramEmail.isBlank()) return paramEmail.trim().toLowerCase();
+        return "guest@cortex.invest";
+    }
+
     @GetMapping
-    public ResponseEntity<List<PortfolioHolding>> getHoldings() {
-        return ResponseEntity.ok(portfolioService.getAllHoldings());
+    public ResponseEntity<List<PortfolioHolding>> getHoldings(
+            @RequestHeader(value = "X-User-Email", required = false) String headerEmail,
+            @RequestParam(value = "userEmail", required = false) String paramEmail) {
+        String email = resolveEmail(headerEmail, paramEmail);
+        return ResponseEntity.ok(portfolioService.getAllHoldings(email));
     }
 
     @PostMapping("/add")
-    public ResponseEntity<PortfolioHolding> addHolding(@RequestBody PortfolioHolding holding) {
-        return ResponseEntity.ok(portfolioService.addHolding(holding));
+    public ResponseEntity<PortfolioHolding> addHolding(
+            @RequestBody PortfolioHolding holding,
+            @RequestHeader(value = "X-User-Email", required = false) String headerEmail,
+            @RequestParam(value = "userEmail", required = false) String paramEmail) {
+        String email = resolveEmail(headerEmail, paramEmail);
+        return ResponseEntity.ok(portfolioService.addHolding(holding, email));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteHolding(@PathVariable Long id) {
-        portfolioService.deleteHolding(id);
+    public ResponseEntity<Void> deleteHolding(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Email", required = false) String headerEmail,
+            @RequestParam(value = "userEmail", required = false) String paramEmail) {
+        String email = resolveEmail(headerEmail, paramEmail);
+        portfolioService.deleteHolding(id, email);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/diagnose")
-    public ResponseEntity<PortfolioDiagnoseResponse> runDiagnosis() {
-        return ResponseEntity.ok(portfolioService.runPortfolioDiagnosis());
+    public ResponseEntity<PortfolioDiagnoseResponse> runDiagnosis(
+            @RequestHeader(value = "X-User-Email", required = false) String headerEmail,
+            @RequestParam(value = "userEmail", required = false) String paramEmail) {
+        String email = resolveEmail(headerEmail, paramEmail);
+        return ResponseEntity.ok(portfolioService.runPortfolioDiagnosis(email));
     }
 
     @GetMapping("/audit")
-    public ResponseEntity<PortfolioAuditResponse> runAudit() {
-        List<PortfolioHolding> holdings = portfolioService.getAllHoldings();
+    public ResponseEntity<PortfolioAuditResponse> runAudit(
+            @RequestHeader(value = "X-User-Email", required = false) String headerEmail,
+            @RequestParam(value = "userEmail", required = false) String paramEmail) {
+        String email = resolveEmail(headerEmail, paramEmail);
+        List<PortfolioHolding> holdings = portfolioService.getAllHoldings(email);
         return ResponseEntity.ok(dualEngineRadarService.auditPortfolio(holdings));
     }
 

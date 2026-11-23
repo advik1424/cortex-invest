@@ -512,9 +512,33 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
+              {holdings.length === 0 && (
+                <tr>
+                  <td colSpan="9" className="py-14 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mx-auto text-[#0F766E] shadow-2xs">
+                        <Plus className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900 font-sans">
+                        Your Portfolio is Clean &amp; Empty
+                      </h4>
+                      <p className="text-xs text-slate-500 font-sans leading-relaxed">
+                        No positions recorded yet under <span className="font-mono font-semibold text-slate-700">{user.email}</span>. Click below to add your first stock holding.
+                      </p>
+                      <button
+                        onClick={() => setShowAddModal(true)}
+                        className="px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0D655E] text-white text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 font-sans cursor-pointer mt-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Stock</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {filteredHoldings.length === 0 && holdings.length > 0 && (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-slate-500 font-sans text-xs">
+                  <td colSpan="9" className="py-8 text-center text-slate-500 font-sans text-xs">
                     No holdings match your search for "{portfolioSearchQuery}".
                   </td>
                 </tr>
@@ -586,8 +610,9 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
       {/* ============================================================== */}
       {/* PORTFOLIO FUNDAMENTAL & TECHNICAL AUDIT                        */}
       {/* ============================================================== */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs space-y-4 p-5">
-        {/* Header */}
+      {holdings.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs space-y-4 p-5">
+          {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#0F766E] shadow-2xs">
@@ -741,6 +766,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
           </div>
         )}
       </div>
+      )}
 
       {/* Stress-Test & Rebalancing Blueprint */}
       {diagnosis && (

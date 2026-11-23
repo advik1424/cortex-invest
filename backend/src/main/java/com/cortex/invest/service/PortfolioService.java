@@ -7,10 +7,10 @@ import com.cortex.invest.model.PortfolioHolding;
 import com.cortex.invest.repository.PortfolioRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,23 +29,11 @@ public class PortfolioService {
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @PostConstruct
-    public void seedInitialHoldings() {
-        if (portfolioRepository.count() == 0) {
-            log.info("Seeding realistic benchmark portfolio...");
-            List<PortfolioHolding> sampleHoldings = List.of(
-                    PortfolioHolding.builder().ticker("HDFCBANK").companyName("HDFC Bank Ltd").quantity(50).avgBuyPrice(1520.0).currentMarketPrice(1742.0).sector("Banking & Financials").category("Compounder").build(),
-                    PortfolioHolding.builder().ticker("TATAMOTORS").companyName("Tata Motors Ltd").quantity(120).avgBuyPrice(680.0).currentMarketPrice(964.0).sector("Automobile / EV").category("Compounder").build(),
-                    PortfolioHolding.builder().ticker("RELIANCE").companyName("Reliance Industries Ltd").quantity(30).avgBuyPrice(1280.0).currentMarketPrice(1377.5).sector("Energy & Conglomerate").category("Compounder").build(),
-                    PortfolioHolding.builder().ticker("SUZLON").companyName("Suzlon Energy Ltd").quantity(500).avgBuyPrice(72.0).currentMarketPrice(64.5).sector("Renewable Energy").category("Cyclical").build(),
-                    PortfolioHolding.builder().ticker("IDEA").companyName("Vodafone Idea Ltd").quantity(1000).avgBuyPrice(14.5).currentMarketPrice(7.8).sector("Telecom").category("Dead Capital").build()
-            );
-            portfolioRepository.saveAll(sampleHoldings);
+    public List<PortfolioHolding> getAllHoldings(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            return List.of();
         }
-    }
-
-    public List<PortfolioHolding> getAllHoldings() {
-        List<PortfolioHolding> holdings = portfolioRepository.findAll();
+        List<PortfolioHolding> holdings = portfolioRepository.findByUserEmailIgnoreCase(userEmail.trim());
         // Dynamically update CMP with real live market quotes
         for (PortfolioHolding h : holdings) {
             try {
@@ -58,29 +46,54 @@ public class PortfolioService {
         return holdings;
     }
 
-    public PortfolioHolding addHolding(PortfolioHolding holding) {
+    public List<PortfolioHolding> getAllHoldings() {
+        return getAllHoldings("guest@cortex.invest");
+    }
+
+    public PortfolioHolding addHolding(PortfolioHolding holding, String userEmail) {
+        if (userEmail != null && !userEmail.isBlank()) {
+            holding.setUserEmail(userEmail.trim().toLowerCase());
+        } else if (holding.getUserEmail() == null || holding.getUserEmail().isBlank()) {
+            holding.setUserEmail("guest@cortex.invest");
+        }
         if (holding.getCategory() == null || holding.getCategory().isBlank()) {
             holding.setCategory("Compounder");
         }
         // Fetch live quote for initial price if missing
         if (holding.getCurrentMarketPrice() == null || holding.getCurrentMarketPrice() == 0) {
             MarketDataService.LiveQuote quote = marketDataService.fetchLiveQuote(holding.getTicker());
-            holding.setCurrentMarketPrice(quote.getCurrentPrice());
+            if (quote != null && quote.getCurrentPrice() != null) {
+                holding.setCurrentMarketPrice(quote.getCurrentPrice());
+            }
         }
         return portfolioRepository.save(holding);
     }
 
+    public PortfolioHolding addHolding(PortfolioHolding holding) {
+        return addHolding(holding, holding.getUserEmail());
+    }
+
+    @Transactional
+    public void deleteHolding(Long id, String userEmail) {
+        if (userEmail != null && !userEmail.isBlank()) {
+            portfolioRepository.deleteByIdAndUserEmailIgnoreCase(id, userEmail.trim().toLowerCase());
+        } else {
+            portfolioRepository.deleteById(id);
+        }
+    }
+
+    @Transactional
     public void deleteHolding(Long id) {
         portfolioRepository.deleteById(id);
     }
 
-    public PortfolioDiagnoseResponse runPortfolioDiagnosis() {
-        List<PortfolioHolding> holdings = getAllHoldings();
+    public PortfolioDiagnoseResponse runPortfolioDiagnosis(String userEmail) {
+        List<PortfolioHolding> holdings = getAllHoldings(userEmail);
         if (holdings.isEmpty()) {
             return PortfolioDiagnoseResponse.builder()
                     .healthScore(0)
-                    .concentrationRiskAssessment("Portfolio is empty.")
-                    .stressTestSummary("N/A")
+                    .concentrationRiskAssessment("Your portfolio is currently empty. Add stocks to trigger a comprehensive AI health diagnosis.")
+                    .stressTestSummary("No active positions to stress test.")
                     .categorizedHoldings(List.of())
                     .rebalancingBlueprint(List.of())
                     .build();
@@ -278,6 +291,10 @@ public class PortfolioService {
                 .categorizedHoldings(list)
                 .rebalancingBlueprint(dynamicBlueprint)
                 .build();
+    }
+
+    public PortfolioDiagnoseResponse runPortfolioDiagnosis() {
+        return runPortfolioDiagnosis("guest@cortex.invest");
     }
 
     public DiscussStockResponse discussIndividualStock(DiscussStockRequest req) {

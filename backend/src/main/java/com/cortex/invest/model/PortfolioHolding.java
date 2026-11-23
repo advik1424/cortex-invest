@@ -22,6 +22,7 @@ public class PortfolioHolding {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String userEmail;
     private String ticker;
     private String companyName;
     private Integer quantity;
