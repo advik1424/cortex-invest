@@ -75,7 +75,7 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
           {/* Brand */}
           <div className="flex items-center space-x-3 shrink-0">
             <button
-              onClick={() => setActiveView('screener')}
+              onClick={() => setActiveView('home')}
               className="flex items-center space-x-2.5 text-left"
             >
               <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-sm">
@@ -134,6 +134,16 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
           {/* Screener Navigation Tabs & Auth */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-semibold">
+              <button
+                onClick={() => setActiveView('home')}
+                className={`px-3 py-1.5 rounded-md transition-colors ${
+                  activeView === 'home'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                Home
+              </button>
               <button
                 onClick={() => setActiveView('screener')}
                 className={`px-3 py-1.5 rounded-md transition-colors ${

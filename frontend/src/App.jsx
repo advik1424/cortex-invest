@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Navbar from './components/Navbar';
+import HomeLanding from './components/HomeLanding';
 import ScreenerMain from './components/ScreenerMain';
 import ChartVisionLight from './components/ChartVisionLight';
 import PortfolioLight from './components/PortfolioLight';
@@ -8,19 +9,30 @@ import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
   const [selectedTicker, setSelectedTicker] = useState('RELIANCE');
-  const [activeView, setActiveView] = useState('screener');
+  const [activeView, setActiveView] = useState('home');
+
+  const handleSelectTicker = (ticker) => {
+    setSelectedTicker(ticker);
+    setActiveView('screener');
+  };
 
   return (
     <AuthProvider>
       <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans selection:bg-teal-100 selection:text-[#0F766E]">
         <Navbar
           selectedTicker={selectedTicker}
-          onSelectCompany={setSelectedTicker}
+          onSelectCompany={handleSelectTicker}
           activeView={activeView}
           setActiveView={setActiveView}
         />
 
         <main className="flex-1 max-w-[1320px] w-full mx-auto px-4 sm:px-6 py-6">
+          {activeView === 'home' && (
+            <HomeLanding
+              onSelectTicker={handleSelectTicker}
+              onNavigate={(view) => setActiveView(view)}
+            />
+          )}
           {activeView === 'screener' && (
             <ScreenerMain ticker={selectedTicker} />
           )}
@@ -33,7 +45,7 @@ export default function App() {
           )}
           {activeView === 'radar' && (
             <RadarDualEngine
-              onSelectTicker={setSelectedTicker}
+              onSelectTicker={handleSelectTicker}
               onNavigateToWarRoom={() => setActiveView('screener')}
               onNavigateToChart={() => setActiveView('chart')}
             />
