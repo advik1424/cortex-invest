@@ -278,9 +278,9 @@ export default function PortfolioLight() {
           </div>
         </div>
         <div className="text-[11px] text-teal-800 flex items-center gap-2 font-medium">
-          <span>Encrypted Session Active</span>
+          <span>Active Encrypted Session</span>
           <span>•</span>
-          <span>Click <b>"💬 Discuss Stock"</b> on any holding row to ask queries to AI</span>
+          <span>Click <b>"Analyze Position"</b> on any holding to evaluate allocation and risk</span>
         </div>
       </div>
 
@@ -359,8 +359,8 @@ export default function PortfolioLight() {
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-black text-slate-900">Portfolio Holdings & Asset Breakdown</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Click <b>"💬 Discuss Stock"</b> on any row to ask holding queries directly to AI.</p>
+            <h3 className="text-lg font-black text-slate-900">Portfolio Holdings &amp; Asset Allocation</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Click <b>"Analyze"</b> on any row to evaluate valuation multiples and position health.</p>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -373,7 +373,7 @@ export default function PortfolioLight() {
             <button
               onClick={fetchAudit}
               disabled={loadingAudit || holdings.length === 0}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50"
             >
               {loadingAudit ? (
                 <>
@@ -383,7 +383,7 @@ export default function PortfolioLight() {
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Audit LT_PORTFOLIO</span>
+                  <span>Audit Portfolio Health</span>
                 </>
               )}
             </button>
@@ -400,7 +400,7 @@ export default function PortfolioLight() {
               ) : (
                 <>
                   <Activity className="w-4 h-4" />
-                  <span>Run Portfolio Health Audit</span>
+                  <span>Run Stress Test</span>
                 </>
               )}
             </button>
@@ -418,7 +418,7 @@ export default function PortfolioLight() {
                 <th className="py-3.5 px-4 text-right">Live CMP</th>
                 <th className="py-3.5 px-4 text-right">Returns (P&L)</th>
                 <th className="py-3.5 px-4 text-center">Classification</th>
-                <th className="py-3.5 px-4 text-center">AI Copilot</th>
+                <th className="py-3.5 px-4 text-center">Analysis</th>
                 <th className="py-3.5 px-4 text-center">Action</th>
               </tr>
             </thead>
@@ -479,26 +479,26 @@ export default function PortfolioLight() {
       </div>
 
       {/* ============================================================== */}
-      {/* LT_PORTFOLIO FUNDAMENTAL & TECHNICAL AUDIT & TRANCHE ADVISORY */}
+      {/* PORTFOLIO FUNDAMENTAL & TECHNICAL AUDIT                        */}
       {/* ============================================================== */}
-      <div className="bg-white border-2 border-indigo-200/90 rounded-2xl overflow-hidden shadow-sm space-y-4 p-6">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs space-y-4 p-5">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 shadow-2xs">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#0F766E] shadow-2xs">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                  Comprehensive Fundamental &amp; Technical Audit (LT_PORTFOLIO)
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Portfolio Fundamental &amp; Risk Audit
                 </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
-                  Adviksuper 6.5.0
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                  Institutional Framework
                 </span>
               </div>
               <span className="text-xs text-slate-500">
-                Full Audit: P/E, ROE, Debt/Eq, Promoter %, Inst % + 200 SMA Support Floor, 52W Drop &amp; RSI. Hard-blocks averaging on debt &gt; 1.8 or loss-makers.
+                Evaluation across valuation multiples (P/E, ROE), debt solvency, promoter ownership, and 200-day moving average position.
               </span>
             </div>
           </div>
@@ -506,7 +506,7 @@ export default function PortfolioLight() {
           <button
             onClick={fetchAudit}
             disabled={loadingAudit}
-            className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold transition-all flex items-center gap-1.5 self-start md:self-auto shadow-2xs"
+            className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 self-start md:self-auto shadow-2xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
             <span>Re-Audit Portfolio</span>
@@ -667,7 +667,7 @@ export default function PortfolioLight() {
 
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 font-sans">
-              Dynamic AI Rebalancing Blueprint
+              Portfolio Rebalancing Blueprint
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {diagnosis.rebalancingBlueprint?.map((step, idx) => (
@@ -699,7 +699,7 @@ export default function PortfolioLight() {
             <div className="border-b border-slate-100 pb-5">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F766E] bg-teal-50 border border-teal-200/80 px-2.5 py-0.5 rounded-md">
-                  Single-Stock Discussion Console
+                  Position Research &amp; Advisory
                 </span>
                 <span className="text-slate-300">•</span>
                 <span className="text-xs text-slate-500 font-sans">{activeDiscussHolding.sector}</span>
@@ -739,14 +739,14 @@ export default function PortfolioLight() {
             {/* Quick Query Pills */}
             <div className="my-5">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-2 font-sans">
-                💡 Instant Questions (Click to Ask AI):
+                Sample Analytical Questions:
               </span>
               <div className="flex flex-wrap gap-2">
                 {[
-                  'Main profit me hoon, hold karu ya book karu?',
-                  'Loss chal raha hai, average karu ya exit karu?',
-                  'Agale 6-12 mahine ka target aur trailing stop loss kya hona chahiye?',
-                  'Exit karke capital kiss high-growth sector me rotate kare?'
+                  'Should I hold, book partial profits, or trail stop loss at current levels?',
+                  'Fundamental risk assessment: Is the underlying business thesis intact?',
+                  '12-Month fair value target and key downside support levels',
+                  'Capital efficiency: How does this stock compare to sector peers?'
                 ].map((q, idx) => (
                   <button
                     key={idx}
@@ -765,14 +765,14 @@ export default function PortfolioLight() {
             {/* Custom Query Textarea */}
             <div className="space-y-2.5">
               <label className="text-xs font-bold text-slate-700 block font-sans">
-                Apna Specific Question Likhein (Hindi / English / Hinglish):
+                Ask a specific query about this holding:
               </label>
               <div className="relative">
                 <textarea
                   rows="2"
                   value={discussQuery}
                   onChange={(e) => setDiscussQuery(e.target.value)}
-                  placeholder="e.g. Kya main is holding par stop loss trail karu ya quarterly results tak hold karu?"
+                  placeholder="e.g. Evaluate whether to maintain allocation through the upcoming quarterly earnings release"
                   className="w-full p-3.5 text-xs border border-slate-300 focus:border-[#0F766E] rounded-xl focus:outline-none transition-colors shadow-2xs font-sans leading-relaxed"
                 />
               </div>
@@ -784,24 +784,24 @@ export default function PortfolioLight() {
                 {discussLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing Position with Gemini 3.1 Flash...</span>
+                    <span>Analyzing Position Fundamentals...</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Ask AI Holding Analyst</span>
+                    <span>Generate Position Analysis</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* AI Solution Response Card */}
+            {/* Response Card */}
             {discussResponse && (
               <div className="mt-6 pt-5 border-t border-slate-100 space-y-4 animate-in fade-in duration-300">
                 {/* Holding Action Verdict Badge */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">AI Holding Action</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Recommended Action</span>
                     <span className={`text-base font-black mt-0.5 inline-block ${
                       discussResponse.holdingAction?.includes('HOLD') ? 'text-emerald-700' :
                       discussResponse.holdingAction?.includes('TRIM') ? 'text-amber-700' :

@@ -7,7 +7,7 @@ import {
   ExternalLink, Award, Eye, X, Check, Clock, FileText, ChevronRight
 } from 'lucide-react';
 
-export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToWarRoom, onSelectTicker }) {
+export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFinancials, onSelectTicker }) {
   // Trading Basis: 'INTRADAY', 'SWING', 'SHORT_TERM', 'LONG_TERM'
   const [tradingCategory, setTradingCategory] = useState('SWING');
 
@@ -377,18 +377,18 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToWarR
                 </div>
               </div>
 
-              {/* 15-Year Backtest Metric Badge */}
+              {/* Technical Risk / Reward Badge */}
               <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-lg text-xs font-mono self-start sm:self-auto flex items-center gap-3">
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold block">15-Yr Backtest Win Rate</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold block">Risk / Reward</span>
                   <span className="text-sm font-bold text-emerald-700">
-                    {analysis.historicalWinRatePct?.toFixed(1) || '76.8'}%
+                    1:{analysis.riskRewardRatio?.toFixed(1) || '2.4'} R:R
                   </span>
                 </div>
                 <div className="border-l border-slate-200 pl-3">
-                  <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold block">Profit Factor</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-sans font-semibold block">Timeframe</span>
                   <span className="text-sm font-bold text-slate-800">
-                    {analysis.profitFactor?.toFixed(2) || '2.68'}x
+                    {analysis.detectedTimeframe || 'Daily'}
                   </span>
                 </div>
               </div>

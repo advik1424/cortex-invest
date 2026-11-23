@@ -7,7 +7,7 @@ import {
   Search, ArrowUpRight, ArrowDownRight, Award, AlertCircle
 } from 'lucide-react';
 
-export default function RadarDualEngine({ onSelectTicker, onNavigateToWarRoom, onNavigateToChart }) {
+export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials, onNavigateToChart }) {
   const [activeTab, setActiveTab] = useState('value'); // 'value' | 'swing'
   const [summary, setSummary] = useState(null);
   const [valueBuys, setValueBuys] = useState([]);
@@ -327,7 +327,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToWarRoom, o
                         <button
                           onClick={() => {
                             onSelectTicker && onSelectTicker(stock.symbol);
-                            onNavigateToWarRoom && onNavigateToWarRoom();
+                            onNavigateToFinancials && onNavigateToFinancials();
                           }}
                           className="px-2.5 py-1 rounded bg-teal-50 hover:bg-teal-100 text-[#0F766E] text-[11px] font-semibold border border-teal-200 transition-colors"
                         >
@@ -572,7 +572,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToWarRoom, o
                 onClick={() => {
                   onSelectTicker && onSelectTicker(selectedStock.symbol);
                   if (modalType === 'value') {
-                    onNavigateToWarRoom && onNavigateToWarRoom();
+                    onNavigateToFinancials && onNavigateToFinancials();
                   } else {
                     onNavigateToChart && onNavigateToChart();
                   }

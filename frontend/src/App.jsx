@@ -39,14 +39,14 @@ export default function App() {
           {activeView === 'chart' && (
             <ChartVisionLight
               ticker={selectedTicker}
-              onNavigateToWarRoom={() => setActiveView('screener')}
+              onNavigateToFinancials={() => setActiveView('screener')}
               onSelectTicker={setSelectedTicker}
             />
           )}
           {activeView === 'radar' && (
             <RadarDualEngine
               onSelectTicker={handleSelectTicker}
-              onNavigateToWarRoom={() => setActiveView('screener')}
+              onNavigateToFinancials={() => setActiveView('screener')}
               onNavigateToChart={() => setActiveView('chart')}
             />
           )}

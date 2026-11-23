@@ -162,11 +162,11 @@ export default function ScreenerMain({ ticker }) {
   const t3Level = ts?.target3 || Math.round(cmp * 1.175 * 10) / 10;
 
   const fundamentalPrompts = [
-    'Company ke fundamentals aur recent news me sabse bada risk kya hai?',
-    'Quarterly results aur management concall guidance ka forensic breakdown do',
-    'Pros vs Cons: Kya ye company long-term wealth compounder hai ya cyclical trap?',
-    'Valuation (PE, DCF) aur margin of safety ka exact analysis karo',
-    'Operating Cash Flow (OCF) vs Net Profit aur working capital cycle ka kya status hai?',
+    'Primary downside risks in the latest quarterly results and business segments',
+    'Management concall guidance, order book, and capital expenditure breakdown',
+    'Long-term compounding thesis vs cyclical industry risks',
+    'Intrinsic valuation (DCF, historical P/E median) and margin of safety',
+    'Operating cash flow (OCF) vs reported net profit and working capital cycle',
   ];
 
   const subTabs = [
