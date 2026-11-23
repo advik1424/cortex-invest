@@ -5,10 +5,10 @@ import {
   Plus, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Activity,
   TrendingDown, Check, MessageSquare, ShieldCheck, Lock, LogIn, AlertCircle,
   HelpCircle, Target, ShieldAlert, DollarSign, PieChart, Info, Send, BarChart3,
-  Layers, Wallet, TrendingUp, AlertOctagon, CheckCircle2, Search, X
+  Layers, Wallet, TrendingUp, AlertOctagon, CheckCircle2, Search, X, FileText
 } from 'lucide-react';
 
-export default function PortfolioLight() {
+export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials }) {
   const { user, loginWithGoogle, setAuthModalOpen } = useAuth();
   const [holdings, setHoldings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -529,9 +529,18 @@ export default function PortfolioLight() {
                 return (
                   <tr key={h.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-4 px-6 font-bold font-sans text-slate-900">
-                      <div className="flex items-center gap-2">
+                      <div 
+                        onClick={() => {
+                          if (onSelectTicker) {
+                            onSelectTicker(h.ticker);
+                            if (onNavigateToFinancials) onNavigateToFinancials();
+                          }
+                        }}
+                        className={`flex items-center gap-2 group ${onSelectTicker ? 'cursor-pointer' : ''}`}
+                        title={onSelectTicker ? `Click to view ${h.ticker} 10-year financials` : undefined}
+                      >
                         <span className={`w-2 h-2 rounded-full ${isPos ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-                        <span>{h.ticker}</span>
+                        <span className="group-hover:text-[#0F766E] transition-colors">{h.ticker}</span>
                       </div>
                       <span className="text-[11px] text-slate-400 block font-normal ml-4">{h.companyName}</span>
                     </td>
@@ -783,13 +792,28 @@ export default function PortfolioLight() {
       {activeDiscussHolding && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative my-8 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            {/* Close Button */}
-            <button
-              onClick={() => setActiveDiscussHolding(null)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-sm font-bold transition-colors"
-            >
-              ✕
-            </button>
+            {/* Close Button & Financials Link */}
+            <div className="absolute top-5 right-5 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectTicker) onSelectTicker(activeDiscussHolding.ticker);
+                  if (onNavigateToFinancials) onNavigateToFinancials();
+                  setActiveDiscussHolding(null);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Open complete 10-year financials"
+              >
+                <FileText className="w-3.5 h-3.5 text-slate-600" />
+                <span>Financials</span>
+              </button>
+              <button
+                onClick={() => setActiveDiscussHolding(null)}
+                className="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
             {/* Header with Holding Stats */}
             <div className="border-b border-slate-100 pb-5">

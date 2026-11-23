@@ -34,7 +34,10 @@ export default function App() {
             />
           )}
           {activeView === 'screener' && (
-            <ScreenerMain ticker={selectedTicker} />
+            <ScreenerMain 
+              ticker={selectedTicker} 
+              onSelectTicker={handleSelectTicker} 
+            />
           )}
           {activeView === 'chart' && (
             <ChartVisionLight
@@ -51,7 +54,10 @@ export default function App() {
             />
           )}
           {activeView === 'portfolio' && (
-            <PortfolioLight />
+            <PortfolioLight 
+              onSelectTicker={handleSelectTicker}
+              onNavigateToFinancials={() => setActiveView('screener')}
+            />
           )}
         </main>
 

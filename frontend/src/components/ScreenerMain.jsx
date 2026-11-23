@@ -31,7 +31,7 @@ import {
   Quote,
 } from 'lucide-react';
 
-export default function ScreenerMain({ ticker }) {
+export default function ScreenerMain({ ticker, onSelectTicker }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1211,27 +1211,40 @@ export default function ScreenerMain({ ticker }) {
                   {peers?.map((peer) => (
                     <tr
                       key={peer.ticker}
-                      className={`hover:bg-slate-50 ${
-                        peer.ticker === ticker ? 'bg-teal-50/50 font-bold' : ''
+                      onClick={() => {
+                        if (onSelectTicker && peer.ticker) {
+                          onSelectTicker(peer.ticker);
+                        }
+                      }}
+                      className={`hover:bg-teal-50/40 transition-colors ${onSelectTicker ? 'cursor-pointer' : ''} ${
+                        peer.ticker === ticker ? 'bg-teal-50/60 font-bold' : ''
                       }`}
+                      title={onSelectTicker ? `Click to view ${peer.name} (${peer.ticker}) financials` : undefined}
                     >
-                      <td className="py-2.5 px-3 font-sans text-slate-900">{peer.name}</td>
-                      <td className="py-2.5 px-3 text-right">{peer.cmp?.toFixed(1)}</td>
-                      <td className="py-2.5 px-3 text-right">{peer.pe?.toFixed(1)}</td>
-                      <td className="py-2.5 px-3 text-right">{peer.marketCap}</td>
-                      <td className="py-2.5 px-3 text-right">{peer.divYield?.toFixed(2)} %</td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td className="py-2.5 px-3 font-sans text-slate-900 group">
+                        <span className="font-semibold text-slate-900 group-hover:text-[#0F766E] transition-colors">
+                          {peer.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono ml-1.5">
+                          ({peer.ticker})
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-medium">{peer.cmp?.toFixed(1)}</td>
+                      <td className="py-2.5 px-3 text-right font-mono">{peer.pe?.toFixed(1)}</td>
+                      <td className="py-2.5 px-3 text-right font-mono">{peer.marketCap}</td>
+                      <td className="py-2.5 px-3 text-right font-mono">{peer.divYield?.toFixed(2)} %</td>
+                      <td className="py-2.5 px-3 text-right font-mono">
                         {peer.netProfitQtr?.toLocaleString()}
                       </td>
                       <td
-                        className={`py-2.5 px-3 text-right ${
+                        className={`py-2.5 px-3 text-right font-mono ${
                           peer.qtrProfitVar >= 0 ? 'text-emerald-600' : 'text-rose-600'
                         }`}
                       >
                         {peer.qtrProfitVar >= 0 ? '+' : ''}
                         {peer.qtrProfitVar}%
                       </td>
-                      <td className="py-2.5 px-3 text-right text-emerald-700 font-bold">
+                      <td className="py-2.5 px-3 text-right text-emerald-700 font-bold font-mono">
                         {peer.roce}%
                       </td>
                     </tr>
