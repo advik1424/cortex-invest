@@ -1,8 +1,19 @@
 # 🏛️ CORTEX INVEST (v6.5.0)
-### Autonomous Institutional Dual-Engine AI Investment Desk & Technical Co-Pilot
+### Institutional Dual-Engine Investment Desk & Financial Research Terminal
+
+[![Live Frontend](https://img.shields.io/badge/Vercel-cortex--invest--theta.vercel.app-000000?style=for-the-badge&logo=vercel)](https://cortex-invest-theta.vercel.app)
+[![Live Backend](https://img.shields.io/badge/Render-cortex--invest--ehm1.onrender.com-46E3B7?style=for-the-badge&logo=render)](https://cortex-invest-ehm1.onrender.com)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-advik1424%2Fcortex--invest-181717?style=for-the-badge&logo=github)](https://github.com/advik1424/cortex-invest)
 
 > **Institutional-Grade Fintech Architecture**  
-> Combines an **Enterprise Spring Boot 3 Backend (Java 21)**, **15-Year Quantitative Backtesting Engine (2009–2024)**, and a **High-Performance React + Vite Frontend**.
+> Combines an **Enterprise Spring Boot 3 Backend (Java 21)**, **15-Year Quantitative Backtesting Engine (2009–2024)**, and a **High-Performance React + Vite Frontend** modeled after Screener.in and Zerodha.
+
+---
+
+## 🌐 Live Cloud Deployment
+* **Production Frontend:** [https://cortex-invest-theta.vercel.app](https://cortex-invest-theta.vercel.app)
+* **Production API Service:** [https://cortex-invest-ehm1.onrender.com](https://cortex-invest-ehm1.onrender.com)
+* **Official GitHub Repository:** [https://github.com/advik1424/cortex-invest](https://github.com/advik1424/cortex-invest)
 
 ---
 
