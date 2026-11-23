@@ -316,6 +316,34 @@ public class PortfolioService {
                 ? req.getUserQuery().trim()
                 : "Aapka is holding par kya verdict hai? Should I hold, book profit, or average?";
 
+        if (!geminiService.isFinancialQuery(userQuery)) {
+            return DiscussStockResponse.builder()
+                    .ticker(ticker)
+                    .companyName(companyName)
+                    .quantity(qty)
+                    .avgBuyPrice(buyPrice)
+                    .currentMarketPrice(cmp)
+                    .investedAmount(invested)
+                    .currentValue(currentVal)
+                    .pnlAmount(pnl)
+                    .pnlPercentage(pnlPct)
+                    .holdingAction("SCOPE NOTICE")
+                    .actionSummary("Query is outside financial and equity research scope.")
+                    .userQuery(userQuery)
+                    .userQueryAnswer(GeminiService.NON_FINANCIAL_WARNING)
+                    .targetPrice12M(cmp)
+                    .stopLossOrExitTrigger(cmp * 0.94)
+                    .riskLevel("N/A")
+                    .taxAndReallocationAdvice("Please submit financial, fundamental, or equity portfolio queries.")
+                    .strategicBulletPoints(List.of(
+                            "Inquiry filtered by domain guardrail",
+                            "Cortex Invest AI is calibrated exclusively for Indian equities & portfolio risk",
+                            "Submit inquiries regarding valuation, debt, concall updates, or position sizing"
+                    ))
+                    .timestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss")))
+                    .build();
+        }
+
         String systemPrompt = "You are an Institutional Senior Portfolio Advisor & Hedge Fund Manager specializing in Indian and global equities.";
         String userPrompt = String.format("""
             PORTFOLIO HOLDING PROFILE:

@@ -834,7 +834,14 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                       <strong className="text-[10px] uppercase font-bold block mb-0.5 text-slate-500">
                         {msg.sender === 'user' ? 'You:' : 'Gemini AI Co-Pilot:'}
                       </strong>
-                      <p className="whitespace-pre-line">{msg.text}</p>
+                      {msg.text.includes('Scope Notice') || msg.text.startsWith('⚠️') ? (
+                        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-lg text-xs font-sans mt-1">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <span className="whitespace-pre-line leading-relaxed font-medium">{msg.text}</span>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-line font-medium">{msg.text}</p>
+                      )}
                     </div>
                   ))}
                 </div>

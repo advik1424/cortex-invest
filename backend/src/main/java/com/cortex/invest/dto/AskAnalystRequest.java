@@ -13,4 +13,9 @@ public class AskAnalystRequest {
     private String ticker;
     private String companyName;
     private String question;
+    private Double currentPrice;
+    private String sector;
+    private Double pe;
+    private Double roe;
+    private Double roce;
 }

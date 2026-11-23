@@ -102,6 +102,11 @@ export default function ScreenerMain({ ticker, onSelectTicker }) {
         ticker: ticker,
         companyName: data?.profile?.name || ticker,
         question: qText.trim(),
+        currentPrice: data?.ratios?.currentPrice,
+        sector: data?.profile?.sector,
+        pe: data?.ratios?.stockPe,
+        roe: data?.ratios?.roe,
+        roce: data?.ratios?.roce,
       };
       const res = await screenerApi.askAnalyst(payload);
       setChatLog((prev) => [
@@ -118,6 +123,70 @@ export default function ScreenerMain({ ticker, onSelectTicker }) {
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const renderFormattedAnswer = (text) => {
+    if (!text) return null;
+
+    // Check if response is a domain warning
+    if (text.includes('Scope Notice') || text.startsWith('⚠️')) {
+      return (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-2xs font-sans">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="leading-relaxed whitespace-pre-line font-medium">
+            {text}
+          </div>
+        </div>
+      );
+    }
+
+    const parseBold = (str) => {
+      const parts = str.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, idx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={idx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+    };
+
+    const lines = text.split('\n');
+    return (
+      <div className="space-y-1.5 text-xs text-slate-800 leading-relaxed font-sans">
+        {lines.map((line, idx) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={idx} className="h-1.5" />;
+          if (trimmed.startsWith('### ')) {
+            return (
+              <h4 key={idx} className="text-xs font-bold text-slate-900 uppercase tracking-wide mt-3 mb-1 flex items-center gap-1.5 text-teal-900 border-b border-slate-100 pb-1">
+                <span className="w-1.5 h-3 bg-[#0F766E] rounded-full inline-block"></span>
+                <span>{trimmed.replace(/^###\s*/, '')}</span>
+              </h4>
+            );
+          }
+          if (trimmed.startsWith('#### ')) {
+            return (
+              <h5 key={idx} className="text-xs font-bold text-slate-800 mt-2 mb-0.5">
+                {trimmed.replace(/^####\s*/, '')}
+              </h5>
+            );
+          }
+          if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+            return (
+              <div key={idx} className="flex items-start gap-2 ml-2 my-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600 shrink-0 mt-1.5"></span>
+                <span>{parseBold(trimmed.slice(2))}</span>
+              </div>
+            );
+          }
+          return (
+            <p key={idx} className="my-0.5">
+              {parseBold(trimmed)}
+            </p>
+          );
+        })}
+      </div>
+    );
   };
 
   if (loading) {
@@ -794,8 +863,8 @@ export default function ScreenerMain({ ticker, onSelectTicker }) {
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono font-normal">{c.timestamp}</span>
                       </div>
-                      <div className="text-slate-800 leading-relaxed pl-5 border-l-2 border-[#0F766E] whitespace-pre-line font-medium text-xs">
-                        {c.answer}
+                      <div className="pl-4 border-l-2 border-[#0F766E] pt-1">
+                        {renderFormattedAnswer(c.answer)}
                       </div>
                     </div>
                   ))}
