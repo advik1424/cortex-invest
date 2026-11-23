@@ -94,27 +94,34 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
   };
 
   const filteredValueBuys = valueBuys.filter((item) => {
-    const q = searchQuery.toLowerCase();
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
     return (
-      item.symbol.toLowerCase().includes(q) ||
-      item.company.toLowerCase().includes(q) ||
-      item.sector.toLowerCase().includes(q)
+      (item.symbol || '').toLowerCase().includes(q) ||
+      (item.company || '').toLowerCase().includes(q) ||
+      (item.sector || '').toLowerCase().includes(q) ||
+      (item.fundamentalGrade || '').toLowerCase().includes(q) ||
+      (item.actionRecommendation || '').toLowerCase().includes(q)
     );
   });
 
   const filteredSwingSignals = swingSignals.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    const matchesQuery =
-      item.symbol.toLowerCase().includes(q) ||
-      item.company.toLowerCase().includes(q) ||
-      item.sector.toLowerCase().includes(q);
+    const q = (searchQuery || '').trim().toLowerCase();
+    const matchesQuery = !q || (
+      (item.symbol || '').toLowerCase().includes(q) ||
+      (item.company || '').toLowerCase().includes(q) ||
+      (item.sector || '').toLowerCase().includes(q) ||
+      (item.selectionBucket || '').toLowerCase().includes(q) ||
+      (item.setupType || '').toLowerCase().includes(q) ||
+      (item.momentumGrade || '').toLowerCase().includes(q)
+    );
 
     if (selectedBucket === 'ALL') return matchesQuery;
-    if (selectedBucket === 'THEME') return matchesQuery && item.selectionBucket?.includes('THEME');
-    if (selectedBucket === 'ALPHA') return matchesQuery && item.selectionBucket?.includes('ALPHA');
-    if (selectedBucket === 'IPO') return matchesQuery && item.selectionBucket?.includes('IPO');
-    if (selectedBucket === 'BREAKOUT') return matchesQuery && (item.setupType?.includes('BREAKOUT') || item.selectionBucket?.includes('52W'));
-    if (selectedBucket === 'VOLUME') return matchesQuery && item.selectionBucket?.includes('VOLUME');
+    if (selectedBucket === 'THEME') return matchesQuery && (item.selectionBucket || '').includes('THEME');
+    if (selectedBucket === 'ALPHA') return matchesQuery && (item.selectionBucket || '').includes('ALPHA');
+    if (selectedBucket === 'IPO') return matchesQuery && (item.selectionBucket || '').includes('IPO');
+    if (selectedBucket === 'BREAKOUT') return matchesQuery && ((item.setupType || '').includes('BREAKOUT') || (item.selectionBucket || '').includes('52W'));
+    if (selectedBucket === 'VOLUME') return matchesQuery && (item.selectionBucket || '').includes('VOLUME');
     return matchesQuery;
   });
 
@@ -272,33 +279,54 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
       {/* ============================================================== */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by Ticker, Company, or Sub-Sector..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#0F766E] shadow-2xs"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSearchQuery('');
+            }}
+            placeholder="Search by Ticker, Company, Sector, or Grade..."
+            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#0F766E] shadow-2xs text-slate-900"
           />
-          <Compass className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {activeTab === 'swing' && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-bold">
-            {['ALL', 'THEME', 'ALPHA', 'IPO', 'BREAKOUT', 'VOLUME'].map((b) => (
-              <button
-                key={b}
-                onClick={() => setSelectedBucket(b)}
-                className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-[11px] ${
-                  selectedBucket === b
-                    ? 'bg-indigo-600 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {b === 'ALL' ? 'All 20 Signals' : b === 'THEME' ? 'Theme Leaders (12)' : b === 'ALPHA' ? 'Market Alpha' : b === 'IPO' ? 'IPO Alpha' : b === 'BREAKOUT' ? '52W Breakouts' : 'Volume Buzzers'}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {searchQuery && (
+            <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
+              {activeTab === 'value' ? filteredValueBuys.length : filteredSwingSignals.length} match(es) found
+            </span>
+          )}
+
+          {activeTab === 'swing' && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-bold">
+              {['ALL', 'THEME', 'ALPHA', 'IPO', 'BREAKOUT', 'VOLUME'].map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setSelectedBucket(b)}
+                  className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap cursor-pointer text-[11px] ${
+                    selectedBucket === b
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {b === 'ALL' ? 'All 20 Signals' : b === 'THEME' ? 'Theme Leaders (12)' : b === 'ALPHA' ? 'Market Alpha' : b === 'IPO' ? 'IPO Alpha' : b === 'BREAKOUT' ? '52W Breakouts' : 'Volume Buzzers'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ============================================================== */}
@@ -561,12 +589,41 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                 </p>
               </div>
 
-              <button
-                onClick={closeStockModal}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1 cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectTicker(selectedStock.symbol);
+                    if (onNavigateToFinancials) onNavigateToFinancials();
+                    closeStockModal();
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Open 10-Year Restated Financials"
+                >
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="hidden sm:inline">Financials</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectTicker(selectedStock.symbol);
+                    if (onNavigateToChart) onNavigateToChart();
+                    closeStockModal();
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-[#0F766E] hover:bg-[#0D655E] text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Open Chart Technical Analysis"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Chart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={closeStockModal}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1 cursor-pointer ml-1"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Quick Price & Target Strip */}

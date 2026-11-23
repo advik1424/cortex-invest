@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { portfolioApi, screenerApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Activity,
   TrendingDown, Check, MessageSquare, ShieldCheck, Lock, LogIn, AlertCircle,
   HelpCircle, Target, ShieldAlert, DollarSign, PieChart, Info, Send, BarChart3,
-  Layers, Wallet, TrendingUp, AlertOctagon, CheckCircle2
+  Layers, Wallet, TrendingUp, AlertOctagon, CheckCircle2, Search, X
 } from 'lucide-react';
 
 export default function PortfolioLight() {
@@ -14,6 +14,7 @@ export default function PortfolioLight() {
   const [loading, setLoading] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState(null);
+  const [portfolioSearchQuery, setPortfolioSearchQuery] = useState('');
 
   // Discuss Stock Modal State
   const [activeDiscussHolding, setActiveDiscussHolding] = useState(null);
@@ -21,9 +22,14 @@ export default function PortfolioLight() {
   const [discussLoading, setDiscussLoading] = useState(false);
   const [discussResponse, setDiscussResponse] = useState(null);
 
-  // Add Stock Modal State
+  // Add Stock Modal State & Autocomplete
   const [showAddModal, setShowAddModal] = useState(false);
   const [fetchingQuote, setFetchingQuote] = useState(false);
+  const [tickerSuggestions, setTickerSuggestions] = useState([]);
+  const [showTickerDropdown, setShowTickerDropdown] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const tickerDropdownRef = useRef(null);
+
   const [newHolding, setNewHolding] = useState({
     ticker: '',
     companyName: '',
@@ -67,6 +73,61 @@ export default function PortfolioLight() {
       fetchAudit();
     }
   }, [user]);
+
+  // Click outside to dismiss ticker dropdown in modal
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (tickerDropdownRef.current && !tickerDropdownRef.current.contains(e.target)) {
+        setShowTickerDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Live autocomplete for Ticker in Add Holding Modal
+  useEffect(() => {
+    if (!newHolding.ticker || newHolding.ticker.trim().length < 1) {
+      setTickerSuggestions([]);
+      setShowTickerDropdown(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await screenerApi.search(newHolding.ticker.trim());
+        setTickerSuggestions(res.data || []);
+        setShowTickerDropdown((res.data || []).length > 0);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [newHolding.ticker]);
+
+  const handleSelectTickerSuggestion = async (item) => {
+    setNewHolding((prev) => ({
+      ...prev,
+      ticker: item.ticker,
+      companyName: item.name || prev.companyName,
+      sector: item.sector || prev.sector,
+    }));
+    setShowTickerDropdown(false);
+    setTickerSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+    await handleTickerBlur(item.ticker);
+  };
+
+  // Filter holdings safely
+  const filteredHoldings = holdings.filter((h) => {
+    const q = (portfolioSearchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (h.ticker || '').toLowerCase().includes(q) ||
+      (h.companyName || '').toLowerCase().includes(q) ||
+      (h.sector || '').toLowerCase().includes(q) ||
+      (h.category || '').toLowerCase().includes(q)
+    );
+  });
 
   // Auto-fetch CMP when user types a valid ticker in Add Stock modal
   const handleTickerBlur = async (tickerSymbol) => {
@@ -357,23 +418,51 @@ export default function PortfolioLight() {
 
       {/* Holdings Table */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-black text-slate-900">Portfolio Holdings &amp; Asset Allocation</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-black text-slate-900">Portfolio Holdings &amp; Asset Allocation</h3>
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                {holdings.length} Positions
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">Click <b>"Analyze"</b> on any row to evaluate valuation multiples and position health.</p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Holdings Quick Filter */}
+            {holdings.length > 0 && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={portfolioSearchQuery}
+                  onChange={(e) => setPortfolioSearchQuery(e.target.value)}
+                  placeholder="Filter holdings..."
+                  className="pl-8 pr-7 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F766E] w-36 sm:w-48 text-slate-800"
+                />
+                {portfolioSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors"
+              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Stock
             </button>
             <button
               onClick={fetchAudit}
               disabled={loadingAudit || holdings.length === 0}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loadingAudit ? (
                 <>
@@ -390,7 +479,7 @@ export default function PortfolioLight() {
             <button
               onClick={handleDiagnose}
               disabled={diagnosing || holdings.length === 0}
-              className="px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0D655E] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0D655E] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {diagnosing ? (
                 <>
@@ -423,7 +512,14 @@ export default function PortfolioLight() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {holdings.map((h) => {
+              {filteredHoldings.length === 0 && holdings.length > 0 && (
+                <tr>
+                  <td colSpan="8" className="py-8 text-center text-slate-500 font-sans text-xs">
+                    No holdings match your search for "{portfolioSearchQuery}".
+                  </td>
+                </tr>
+              )}
+              {filteredHoldings.map((h) => {
                 const invested = h.avgBuyPrice * h.quantity;
                 const current = h.currentMarketPrice * h.quantity;
                 const pnl = current - invested;
@@ -877,25 +973,79 @@ export default function PortfolioLight() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
             <h3 className="text-lg font-black text-slate-900 mb-1">Add Stock to Portfolio</h3>
-            <p className="text-xs text-slate-500 mb-4">Enter ticker to auto-fetch real-time market price.</p>
+            <p className="text-xs text-slate-500 mb-4">Search company or enter ticker to auto-fetch live market price.</p>
             
             <form onSubmit={handleAddHolding} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Stock Ticker (NSE/BSE)</label>
-                <div className="relative">
+                <label className="text-xs font-bold text-slate-700 block mb-1">Search Company or Ticker (NSE/BSE)</label>
+                <div className="relative" ref={tickerDropdownRef}>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. INFY, TCS, TATAMOTORS, HDFCBANK"
+                    placeholder="Search e.g. Tata, Reliance, INFY, HDFC Bank..."
                     value={newHolding.ticker}
+                    onFocus={() => {
+                      if (tickerSuggestions.length > 0) setShowTickerDropdown(true);
+                    }}
                     onChange={(e) => setNewHolding({ ...newHolding, ticker: e.target.value.toUpperCase() })}
-                    onBlur={(e) => handleTickerBlur(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown' && tickerSuggestions.length > 0) {
+                        e.preventDefault();
+                        setShowTickerDropdown(true);
+                        setSelectedSuggestionIndex((prev) => (prev < tickerSuggestions.length - 1 ? prev + 1 : 0));
+                      } else if (e.key === 'ArrowUp' && tickerSuggestions.length > 0) {
+                        e.preventDefault();
+                        setShowTickerDropdown(true);
+                        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : tickerSuggestions.length - 1));
+                      } else if (e.key === 'Enter') {
+                        if (showTickerDropdown && selectedSuggestionIndex >= 0 && tickerSuggestions[selectedSuggestionIndex]) {
+                          e.preventDefault();
+                          handleSelectTickerSuggestion(tickerSuggestions[selectedSuggestionIndex]);
+                        } else if (showTickerDropdown && tickerSuggestions.length > 0) {
+                          e.preventDefault();
+                          handleSelectTickerSuggestion(tickerSuggestions[0]);
+                        }
+                      } else if (e.key === 'Escape') {
+                        setShowTickerDropdown(false);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      setTimeout(() => {
+                        handleTickerBlur(e.target.value);
+                      }, 200);
+                    }}
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono uppercase focus:outline-none focus:border-[#0F766E] shadow-2xs"
                   />
                   {fetchingQuote && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-teal-600 font-sans">
                       <Loader2 className="w-3 h-3 animate-spin" />
                       <span>Fetching quote...</span>
+                    </div>
+                  )}
+
+                  {/* Autocomplete Dropdown */}
+                  {showTickerDropdown && tickerSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                      {tickerSuggestions.map((item, idx) => (
+                        <button
+                          key={item.ticker}
+                          type="button"
+                          onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleSelectTickerSuggestion(item);
+                          }}
+                          className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                            selectedSuggestionIndex === idx ? 'bg-teal-50 text-teal-900' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900 font-sans">{item.name}</span>
+                            <span className="text-slate-500 ml-1.5 font-mono">({item.ticker})</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-sans">{item.sector}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

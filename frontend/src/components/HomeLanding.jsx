@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
   TrendingUp, 
@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Sparkles,
   FileText,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { screenerApi } from '../services/api';
 
@@ -20,17 +21,69 @@ export default function HomeLanding({ onSelectTicker, onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const searchRef = useRef(null);
+
+  const handleSelectTicker = (ticker) => {
+    if (!ticker) return;
+    onSelectTicker(ticker);
+    setIsSearching(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedIndex(-1);
+  };
+
+  const handleSearchSubmit = () => {
+    if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+      handleSelectTicker(searchResults[selectedIndex].ticker);
+    } else if (searchResults.length > 0) {
+      handleSelectTicker(searchResults[0].ticker);
+    } else if (searchQuery.trim()) {
+      handleSelectTicker(searchQuery.trim().toUpperCase());
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsSearching(true);
+      setSelectedIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsSearching(true);
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    } else if (e.key === 'Escape') {
+      setIsSearching(false);
+      setSelectedIndex(-1);
+    }
+  };
+
+  // Click outside to dismiss search results
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setIsSearching(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Live Autocomplete
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setSelectedIndex(-1);
       return;
     }
     const timer = setTimeout(async () => {
       try {
         const res = await screenerApi.search(searchQuery);
         setSearchResults(res.data || []);
+        setSelectedIndex(-1);
       } catch (err) {
         console.error('Search error:', err);
       }
@@ -107,31 +160,49 @@ export default function HomeLanding({ onSelectTicker, onNavigate }) {
         </p>
 
         {/* Global Hero Search Bar */}
-        <div className="mt-8 relative max-w-2xl mx-auto">
+        <div className="mt-8 relative max-w-2xl mx-auto" ref={searchRef}>
           <div className="relative shadow-md rounded-xl overflow-hidden border border-slate-300 focus-within:border-[#0F766E] focus-within:ring-2 focus-within:ring-teal-600/10 transition-all bg-white">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onFocus={() => setIsSearching(true)}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="Search for a company (e.g. Reliance, Tata Motors, HDFC Bank, Infosys)..."
-              className="w-full pl-12 pr-4 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none bg-transparent"
+              className="w-full pl-12 pr-10 py-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none bg-transparent"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setSelectedIndex(-1);
+                }}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Autocomplete Dropdown */}
           {isSearching && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 text-left overflow-hidden divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150">
-              {searchResults.map((r) => (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 text-left overflow-hidden divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150 max-h-80 overflow-y-auto">
+              {searchResults.map((r, idx) => (
                 <button
                   key={r.ticker}
-                  onClick={() => {
-                    onSelectTicker(r.ticker);
-                    setIsSearching(false);
-                    setSearchQuery('');
+                  type="button"
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectTicker(r.ticker);
                   }}
-                  className="w-full px-5 py-3 text-left hover:bg-slate-50 flex items-center justify-between transition-colors"
+                  className={`w-full px-5 py-3 text-left flex items-center justify-between transition-colors cursor-pointer ${
+                    selectedIndex === idx ? 'bg-teal-50/80 text-teal-900' : 'hover:bg-slate-50'
+                  }`}
                 >
                   <div>
                     <span className="font-bold text-slate-900 text-sm">{r.name}</span>

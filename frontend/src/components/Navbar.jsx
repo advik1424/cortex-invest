@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, TrendingUp, Briefcase, ExternalLink, Activity, LogIn, LogOut, User, CheckCircle2, ChevronDown, Compass } from 'lucide-react';
+import { Search, TrendingUp, Briefcase, ExternalLink, Activity, LogIn, LogOut, User, CheckCircle2, ChevronDown, Compass, X } from 'lucide-react';
 import { screenerApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +8,7 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const searchRef = useRef(null);
@@ -36,15 +37,55 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
 
   const quickPills = ['RELIANCE', 'TATAMOTORS', 'HDFCBANK', 'INFY', 'TCS', 'SUZLON', 'ITC', 'ZOMATO', 'CDSL', 'HAL', 'SBIN'];
 
+  const handleSelectCompany = (ticker) => {
+    if (!ticker) return;
+    onSelectCompany(ticker);
+    setIsSearching(false);
+    setQuery('');
+    setResults([]);
+    setSelectedIndex(-1);
+    setActiveView('screener');
+  };
+
+  const handleSearchSubmit = () => {
+    if (selectedIndex >= 0 && results[selectedIndex]) {
+      handleSelectCompany(results[selectedIndex].ticker);
+    } else if (results.length > 0) {
+      handleSelectCompany(results[0].ticker);
+    } else if (query.trim()) {
+      handleSelectCompany(query.trim().toUpperCase());
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsSearching(true);
+      setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsSearching(true);
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    } else if (e.key === 'Escape') {
+      setIsSearching(false);
+      setSelectedIndex(-1);
+    }
+  };
+
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setSelectedIndex(-1);
       return;
     }
     const timer = setTimeout(async () => {
       try {
         const res = await screenerApi.search(query);
-        setResults(res.data);
+        setResults(res.data || []);
+        setSelectedIndex(-1);
       } catch (e) {
         console.error(e);
       }
@@ -95,36 +136,53 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
           {/* Screener.in Global Search Bar */}
           <div className="flex-1 max-w-lg relative" ref={searchRef}>
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onFocus={() => setIsSearching(true)}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Search for a company (e.g. Reliance, Tata Motors, HDFC Bank)..."
-                className="w-full bg-slate-50 border border-slate-300 focus:border-[#0F766E] focus:bg-white rounded-lg pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-2xs"
+                className="w-full bg-slate-50 border border-slate-300 focus:border-[#0F766E] focus:bg-white rounded-lg pl-10 pr-9 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-2xs"
               />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('');
+                    setResults([]);
+                    setSelectedIndex(-1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Live Autocomplete Dropdown */}
             {isSearching && results.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden divide-y divide-slate-100">
-                {results.map((r) => (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                {results.map((r, idx) => (
                   <button
                     key={r.ticker}
-                    onClick={() => {
-                      onSelectCompany(r.ticker);
-                      setIsSearching(false);
-                      setQuery('');
-                      setActiveView('screener');
+                    type="button"
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelectCompany(r.ticker);
                     }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
+                    className={`w-full px-4 py-2.5 text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                      selectedIndex === idx ? 'bg-teal-50/80 text-teal-900' : 'hover:bg-slate-50'
+                    }`}
                   >
                     <div>
                       <span className="font-bold text-slate-900">{r.name}</span>
-                      <span className="text-slate-500 ml-2">({r.ticker})</span>
+                      <span className="text-slate-500 ml-2 font-mono">({r.ticker})</span>
                     </div>
-                    <span className="text-[11px] text-slate-400">{r.sector}</span>
+                    <span className="text-[11px] text-slate-400 font-sans">{r.sector}</span>
                   </button>
                 ))}
               </div>
