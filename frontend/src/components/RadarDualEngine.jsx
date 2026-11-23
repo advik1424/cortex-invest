@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { radarApi, screenerApi } from '../services/api';
+import FormattedAnalystAnswer from './FormattedAnalystAnswer';
 import {
   Compass, TrendingUp, ShieldCheck, Target, Layers, Zap,
   Award, Activity, CheckCircle2, Filter, RefreshCw, Scale,
@@ -63,16 +64,21 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
     if (!q.trim() || !selectedStock) return;
 
     setAiLoading(true);
-    const userMsg = { sender: 'user', text: q };
+    const userMsg = { sender: 'user', text: q.trim() };
     setAiChatLog((prev) => [...prev, userMsg]);
 
     try {
       const ticker = selectedStock.symbol;
-      const companyName = selectedStock.company;
+      const companyName = selectedStock.company || ticker;
       const res = await screenerApi.askAnalyst({
         ticker,
         companyName,
-        question: `[Quantitative Setup Context: ${modalType === 'value' ? 'Long-Term Value Tranche Setup' : 'High-Win-Rate Swing Setup'}] ${q}`,
+        question: q.trim(),
+        currentPrice: selectedStock.cmp || selectedStock.price || 0,
+        sector: selectedStock.sector || 'Diversified',
+        pe: selectedStock.pe || 0,
+        roe: selectedStock.roe || 0,
+        roce: selectedStock.roce || 0,
       });
 
       const aiReply = {
@@ -821,26 +827,25 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
 
               {/* AI Chat History */}
               {aiChatLog.length > 0 && (
-                <div className="space-y-2 mt-3 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="space-y-3 mt-3 max-h-72 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
                   {aiChatLog.map((msg, mIdx) => (
                     <div
                       key={mIdx}
-                      className={`text-xs p-2.5 rounded-lg leading-relaxed ${
+                      className={`text-xs p-3 rounded-xl leading-relaxed ${
                         msg.sender === 'user'
-                          ? 'bg-white border border-slate-200 text-slate-900 font-medium'
-                          : 'bg-teal-50 border border-teal-100 text-teal-950 font-sans'
+                          ? 'bg-white border border-slate-200 text-slate-900 font-medium ml-4'
+                          : 'bg-white border border-teal-200/80 shadow-2xs mr-2 font-sans'
                       }`}
                     >
-                      <strong className="text-[10px] uppercase font-bold block mb-0.5 text-slate-500">
+                      <strong className={`text-[10px] uppercase font-bold block mb-1.5 ${
+                        msg.sender === 'user' ? 'text-slate-500' : 'text-[#0F766E]'
+                      }`}>
                         {msg.sender === 'user' ? 'You:' : 'Gemini AI Co-Pilot:'}
                       </strong>
-                      {msg.text.includes('Scope Notice') || msg.text.startsWith('⚠️') ? (
-                        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-lg text-xs font-sans mt-1">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                          <span className="whitespace-pre-line leading-relaxed font-medium">{msg.text}</span>
-                        </div>
+                      {msg.sender === 'user' ? (
+                        <p className="text-slate-800 font-medium">{msg.text}</p>
                       ) : (
-                        <p className="whitespace-pre-line font-medium">{msg.text}</p>
+                        <FormattedAnalystAnswer text={msg.text} />
                       )}
                     </div>
                   ))}

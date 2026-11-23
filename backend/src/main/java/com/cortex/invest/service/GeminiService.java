@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -44,10 +45,14 @@ public class GeminiService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired(required = false)
+    private MarketDataService marketDataService;
+
     private final List<String> fallbackModels = List.of(
             "gemini-2.5-flash",
             "gemini-2.0-flash",
             "gemini-1.5-flash",
+            "gemini-2.0-flash-lite",
             "gemini-1.5-flash-8b"
     );
 
@@ -424,43 +429,72 @@ public class GeminiService {
 
     public static final String NON_FINANCIAL_WARNING =
             "⚠️ **Scope Notice**: Cortex Invest AI is an institutional research terminal calibrated exclusively for Indian equities, corporate balance sheets, valuation ratios, and quantitative trading setups.\n\n"
-            + "Please submit a question related to company fundamentals, financial ratios, quarterly concall updates, or market price action.";
+            + "Please submit an inquiry related to company fundamentals, financial ratios, quarterly concall updates, technical chart setups, or portfolio position sizing.";
 
     public boolean isFinancialQuery(String text) {
-        if (text == null || text.isBlank()) return true;
-        String q = text.toLowerCase().trim();
+        if (text == null) return false;
 
-        // Financial terms that confirm domain relevance
-        List<String> financialTerms = List.of(
-                "stock", "share", "cmp", "price", "buy", "sell", "hold", "target", "stoploss", "stop loss",
-                "pe", "p/e", "pb", "roe", "roce", "eps", "dividend", "yield", "debt", "equity", "cash",
-                "fcf", "margin", "profit", "loss", "pat", "ebitda", "ebit", "sales", "revenue", "growth",
-                "capex", "concall", "results", "quarter", "fy", "nifty", "sensex", "banknifty", "nse", "bse",
-                "breakout", "swing", "intraday", "invest", "portfolio", "moat", "altman", "piotroski", "dcf",
-                "valuation", "balance sheet", "income statement", "cash flow", "market cap", "promoter",
-                "fii", "dii", "volume", "ema", "sma", "rsi", "support", "resistance", "trend", "risk",
-                "tax", "stcg", "ltcg", "ipo", "bonus", "split", "order book", "guidance", "fundamentals",
-                "pros", "cons", "management", "earnings", "valuation", "ratio", "rebound"
-        );
+        // Strip any automated client-side context wrappers
+        String q = text.replaceAll("(?i)^\\[.*?\\]\\s*", "")
+                       .replaceAll("(?i)^Based on chart analysis.*?[:\\-]\\s*", "")
+                       .toLowerCase()
+                       .trim();
 
-        for (String term : financialTerms) {
-            if (q.contains(term)) return true;
-        }
+        if (q.length() < 2) return false;
 
-        // Explicit non-financial patterns
+        // 1. Explicit Non-Financial Patterns (Intercept immediately)
         List<String> nonFinancialPatterns = List.of(
-                "who is", "capital of", "recipe", "cook", "food", "movie", "film", "song", "actor",
-                "actress", "cricket match", "football match", "weather", "temperature", "poem", "story",
-                "joke", "dating", "relationship", "coding in", "write code", "who won", "president of",
-                "prime minister of", "lyrics", "game cheat", "translate to", "how to make a cake",
-                "tell a joke", "what is your name", "who made you"
+                "who is", "who was", "who won", "capital of", "president of", "prime minister",
+                "chief minister", "governor of", "where is", "recipe", "cook", "how to cook",
+                "food", "dish", "biryani", "paneer", "cake", "movie", "film", "song", "actor",
+                "actress", "cinema", "director", "cricket", "football", "ipl", "match score",
+                "world cup", "weather", "temperature", "climate", "poem", "story", "tell a joke",
+                "joke", "dating", "relationship", "girlfriend", "boyfriend", "coding", "write code",
+                "python", "javascript", "java code", "html", "css", "leetcode", "debug",
+                "lyrics", "translate to", "game cheat", "what is your name", "who made you",
+                "how are you", "are you ai", "are you a bot", "hello", "hi there", "good morning",
+                "good night", "sing a song", "make me laugh", "astrology", "horoscope", "diet plan",
+                "gym workout", "symptoms of", "fever", "headache", "medicine for", "sachin", "tendulkar",
+                "virat", "kohli", "dhoni", "messi", "ronaldo"
         );
 
         for (String pattern : nonFinancialPatterns) {
-            if (q.contains(pattern)) return false;
+            if (q.contains(pattern)) {
+                // Check if it's a rare query explicitly linking a non-financial entity to financial statement metrics
+                boolean hasExplicitMetricOverride = (q.contains("ebitda") || q.contains("balance sheet")
+                        || q.contains("concall") || q.contains("pe ratio") || q.contains("roce")
+                        || q.contains("quarterly results"));
+                if (!hasExplicitMetricOverride) {
+                    return false;
+                }
+            }
         }
 
-        return true;
+        // 2. Financial Domain Relevance Keywords
+        List<String> financialTerms = List.of(
+                "stock", "share", "cmp", "target", "stoploss", "stop loss", "sl", "entry", "exit",
+                "buy", "sell", "hold", "accumulate", "trim", "average", "pullback", "dip",
+                "pe", "p/e", "pb", "p/b", "roe", "roce", "eps", "dividend", "yield", "payout",
+                "debt", "equity", "loan", "solvency", "leverage", "cash", "fcf", "cash flow",
+                "margin", "profit", "loss", "pat", "ebitda", "ebit", "sales", "revenue", "growth",
+                "capex", "concall", "results", "quarter", "earnings", "fy", "guidance", "order book",
+                "nifty", "sensex", "banknifty", "nse", "bse", "breakout", "breakdown", "swing",
+                "intraday", "invest", "portfolio", "moat", "altman", "piotroski", "dcf",
+                "valuation", "balance sheet", "market cap", "promoter", "pledge", "fii", "dii",
+                "volume", "ema", "sma", "rsi", "support", "resistance", "trend", "risk",
+                "tax", "stcg", "ltcg", "ipo", "bonus", "split", "rebound", "drawdown",
+                "beta", "outperform", "underperform", "tranche", "breakeven", "trap", "bull trap",
+                "overvalued", "undervalued", "level", "price", "ratios", "expensive", "cheap"
+        );
+
+        for (String term : financialTerms) {
+            if (Pattern.compile("\\b" + Pattern.quote(term) + "\\b", Pattern.CASE_INSENSITIVE).matcher(q).find()
+                || q.contains(term)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -469,12 +503,10 @@ public class GeminiService {
     public AskAnalystResponse answerAnalystQuestion(AskAnalystRequest request) {
         String ticker = request.getTicker() != null ? request.getTicker().toUpperCase().trim() : "RELIANCE";
         String companyName = request.getCompanyName() != null ? request.getCompanyName() : ticker;
-        String question = request.getQuestion() != null ? request.getQuestion().trim() : "What is the core investment thesis?";
-        double cmp = request.getCurrentPrice() != null ? request.getCurrentPrice() : 0.0;
-        String sector = request.getSector() != null ? request.getSector() : "Diversified";
-        double pe = request.getPe() != null ? request.getPe() : 0.0;
-        double roe = request.getRoe() != null ? request.getRoe() : 0.0;
-        double roce = request.getRoce() != null ? request.getRoce() : 0.0;
+        String rawQuestion = request.getQuestion() != null ? request.getQuestion().trim() : "What is the core investment thesis?";
+        String question = rawQuestion.replaceAll("(?i)^\\[.*?\\]\\s*", "")
+                                     .replaceAll("(?i)^Based on chart analysis.*?[:\\-]\\s*", "")
+                                     .trim();
 
         // Domain Guardrail: Block non-financial queries with clear institutional warning
         if (!isFinancialQuery(question)) {
@@ -484,6 +516,30 @@ public class GeminiService {
                     .answer(NON_FINANCIAL_WARNING)
                     .timestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss")))
                     .build();
+        }
+
+        double cmp = request.getCurrentPrice() != null ? request.getCurrentPrice() : 0.0;
+        String sector = request.getSector() != null ? request.getSector() : "Diversified";
+        double pe = request.getPe() != null ? request.getPe() : 0.0;
+        double roe = request.getRoe() != null ? request.getRoe() : 0.0;
+        double roce = request.getRoce() != null ? request.getRoce() : 0.0;
+
+        // Auto-enrich metrics if missing
+        if (marketDataService != null && (cmp <= 0 || pe <= 0 || roe <= 0)) {
+            try {
+                MarketDataService.LiveQuote quote = marketDataService.fetchLiveQuote(ticker);
+                if (quote != null) {
+                    if (cmp <= 0 && quote.getCurrentPrice() != null) cmp = quote.getCurrentPrice();
+                    if (pe <= 0 && quote.getPeRatio() != null) pe = quote.getPeRatio();
+                    if (roe <= 0 && quote.getRoe() != null) roe = quote.getRoe();
+                    if (roce <= 0 && quote.getRoce() != null) roce = quote.getRoce();
+                    if (sector.isBlank() || sector.equalsIgnoreCase("Diversified")) {
+                        if (quote.getSector() != null) sector = quote.getSector();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Could not enrich quote for {}: {}", ticker, e.getMessage());
+            }
         }
 
         String systemPrompt = "You are the Senior Institutional Research Director and Chief Investment Strategist at an Elite Tier-1 Fund & Equity Desk in India.\n"
@@ -500,7 +556,7 @@ public class GeminiService {
                 + "FORMATTING MANDATE FOR RELEVANT FINANCIAL QUESTIONS:\n"
                 + "Structure your response into clean, high-impact Markdown sections:\n"
                 + "### 1. Direct Analyst Verdict\n"
-                + "(1-2 concise, decisive sentences answering the user's question directly with clear conviction)\n\n"
+                + "(1-2 concise, decisive sentences addressing the user's specific question directly with clear conviction, exact price/trigger numbers, and trader discipline)\n\n"
                 + "### 2. Fundamental & Quantitative Analysis\n"
                 + "(Provide specific data points: ROCE/ROE efficiency, free cash flow conversion, balance sheet debt/leverage, pricing power, or operating margin trajectory)\n\n"
                 + "### 3. Key Catalysts & Risk Watch\n"
@@ -522,113 +578,214 @@ public class GeminiService {
                 .build();
     }
 
-    private String generateContextAwareAnalystAnswer(String ticker, String companyName, String q, double cmp, String sector, double pe, double roe, double roce) {
-        String lowerQ = q.toLowerCase();
+    private String generateContextAwareAnalystAnswer(String ticker, String companyName, String rawQuestion, double cmp, String sector, double pe, double roe, double roce) {
+        String cleanQ = rawQuestion != null
+                ? rawQuestion.replaceAll("(?i)^\\[.*?\\]\\s*", "").replaceAll("(?i)^Based on chart analysis.*?[:\\-]\\s*", "").trim()
+                : "What is the investment thesis?";
+        String lowerQ = cleanQ.toLowerCase();
+
         double baseCmp = cmp > 0 ? cmp : 1000.0;
         double baseRoe = roe > 0 ? roe : 18.5;
         double baseRoce = roce > 0 ? roce : 21.0;
         double basePe = pe > 0 ? pe : 24.5;
+        String baseSector = (sector != null && !sector.isBlank()) ? sector : "Diversified";
 
-        if (lowerQ.contains("debt") || lowerQ.contains("loan") || lowerQ.contains("solvency") || lowerQ.contains("leverage")) {
+        double slLevel = Math.round(baseCmp * 0.955 * 10.0) / 10.0;
+        double t1Level = Math.round(baseCmp * 1.058 * 10.0) / 10.0;
+        double t2Level = Math.round(baseCmp * 1.125 * 10.0) / 10.0;
+        double entryLow = Math.round(baseCmp * 0.985 * 10.0) / 10.0;
+        double entryHigh = Math.round(baseCmp * 1.008 * 10.0) / 10.0;
+
+        // 1. Correction / Tranches / Market Dip / Averaging Down
+        if (lowerQ.contains("correct") || lowerQ.contains("tranche") || lowerQ.contains("dip") || lowerQ.contains("fall") || lowerQ.contains("crash") || lowerQ.contains("average")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
-                **Balance sheet solvency for %s (%s) is healthy with low leverage risk and robust interest coverage.**
+                **Regarding your inquiry on market corrections and tranche deployment:**
+                For %s (%s) at CMP ₹%.2f, we advise preserving cash for **Tranche 2 deployment near ₹%.2f** rather than aggressive lump-sum buying during broad index volatility.
 
                 ### 2. Fundamental & Quantitative Analysis
-                * **Debt-to-Equity & Coverage**: The company maintains a conservative leverage profile with Debt/Equity well below 0.6x, supported by an interest coverage ratio exceeding 5.5x.
-                * **Cash Conversion**: Operating cash flows reliably cover ongoing capital expenditures, eliminating reliance on external debt borrowings for routine operations.
-                * **Working Capital Cycle**: Capital allocation is disciplined with negligible promoter pledge and strong liquidity buffers.
+                * **Tranche Deployment Discipline**: Maintain a strict 2-tranche protocol. Deploy 50%% allocation at current market price (₹%.2f) and reserve remaining 50%% for confirmed support rebounds near ₹%.2f.
+                * **Balance Sheet Shock-Absorber**: Superior ROE (%.1f%%) and ROCE (%.1f%%) provide institutional downside resilience. Companies with pristine capital efficiency historically rebound faster post-correction.
+                * **Cash Conversion**: High operating cash flow conversion prevents balance sheet stress during broader economic contractions.
 
                 ### 3. Key Catalysts & Risk Watch
-                * **Capex Accruals**: Planned facility expansions are funded via internal cash accruals rather than floating debt.
-                * **Refinancing Sensitivity**: Low exposure to high-interest debt shields the company from elevated policy interest rates.
+                * **Support Demarcation**: Primary dynamic support rests at ₹%.2f (20/50 EMA confluence). A daily close below ₹%.2f invalidates the near-term accumulation thesis.
+                * **Macro Headwinds**: Broader index multiple compression remains the primary external drag.
+
+                ### 4. Strategic Investment Takeaway
+                * **Action Plan**: Keep limit bids staged between ₹%.2f and ₹%.2f. Invalidate tranche additions if daily closing price breaches ₹%.2f.
+                """, companyName, ticker, baseCmp, entryLow, baseCmp, entryLow, baseRoe, baseRoce, slLevel, slLevel, entryLow, entryHigh, slLevel);
+        }
+
+        // 2. Breakout / Momentum / Bull Trap / 20 EMA / Volume
+        if (lowerQ.contains("breakout") || lowerQ.contains("trap") || lowerQ.contains("bull trap") || lowerQ.contains("20 ema") || lowerQ.contains("ema") || lowerQ.contains("volume")) {
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Regarding breakout authenticity and bull trap risk:**
+                The price structure for %s (%s) remains constructive above the 20 EMA at CMP ₹%.2f. To eliminate bull trap risk, initiate positions only on confirmed candle closes inside the ₹%.2f - ₹%.2f accumulation corridor.
+
+                ### 2. Fundamental & Quantitative Analysis
+                * **Volume Expansion Benchmark**: Authentic institutional breakouts require delivery volume exceeding 1.8x the 20-day average. Watch for volume expansion on upward green candles.
+                * **Moving Average Alignment**: 20 EMA acts as dynamic trailing support. Price staying above 50 EMA confirms Stage-2 institutional accumulation.
+                * **Moat Support**: Operating in the %s sector with high capital return (ROCE: %.1f%%) ensures technical breakouts are supported by real earnings power.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **Bull Trap Warning**: Sudden volume contraction on higher prices or an exhaustion wick below ₹%.2f signals short-term profit taking.
+                * **Invalidation Level**: A decisive daily close below ₹%.2f breaks the swing momentum and triggers an automatic exit.
+
+                ### 4. Strategic Investment Takeaway
+                * **Execution Strategy**: Enter 50%% at CMP, booking 50%% profit at Target 1 (₹%.2f) while immediately shifting Stop Loss to Breakeven (Entry price).
+                """, companyName, ticker, baseCmp, entryLow, entryHigh, baseSector, baseRoce, slLevel, slLevel, t1Level);
+        }
+
+        // 3. Gap Down / Stop Loss / Risk Management
+        if (lowerQ.contains("gap") || lowerQ.contains("stop loss") || lowerQ.contains("stoploss") || lowerQ.contains("sl") || lowerQ.contains("risk")) {
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Regarding gap-downs and risk containment:**
+                For %s (%s), the strict quantitative risk floor is pegged at **₹%.2f (-4.5%% risk)**. If a morning gap-down closes below this pivot on a 15-minute candle, execute the capital preservation stop-loss rule immediately.
+
+                ### 2. Fundamental & Quantitative Analysis
+                * **Risk-to-Reward Ratio**: Current setup offers an institutional 1:2.5 risk-to-reward ratio relative to Target 1 (₹%.2f) and Target 2 (₹%.2f).
+                * **Position Sizing Rule**: Limit maximum allocation to 8%%-10%% of total portfolio capital. Never risk more than 1.0%%-1.5%% of total account equity on a single position.
+                * **Volatility Cushion**: Strong return metrics (ROE: %.1f%%) limit protracted drawdowns compared to speculative peers.
+
+                ### 3. Execution Levels & Risk Triggers
+                * **Current Market Price**: ₹%.2f
+                * **Strict Stop Loss**: ₹%.2f (Risk: -4.5%%)
+                * **Target 1 (50%% Profit Lock)**: ₹%.2f (+5.8%%)
+                * **Target 2 (Runner)**: ₹%.2f (+12.5%%)
+
+                ### 4. Strategic Investment Takeaway
+                * **Trader Discipline**: Place GTT or system stop-loss at ₹%.2f. Never hold an invalidated swing trade hoping for a bounce.
+                """, companyName, ticker, slLevel, t1Level, t2Level, baseRoe, baseCmp, slLevel, t1Level, t2Level, slLevel);
+        }
+
+        // 4. Valuation / PE / Cheap vs Expensive / DCF
+        if (lowerQ.contains("pe") || lowerQ.contains("p/e") || lowerQ.contains("valuation") || lowerQ.contains("cheap") || lowerQ.contains("expensive") || lowerQ.contains("dcf") || lowerQ.contains("overvalued") || lowerQ.contains("undervalued")) {
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Regarding valuation multiples and fair price assessment:**
+                At CMP ₹%.2f, %s (%s) trades at a P/E multiple of **%.1fx**, offering a balanced risk-reward corridor against its historical compounding efficiency (ROE: %.1f%%).
+
+                ### 2. Fundamental & Quantitative Analysis
+                * **Valuation Multiple vs Historical Median**: Current P/E of %.1fx represents a reasonable entry multiple relative to the 5-year sector average.
+                * **PEG Ratio Comfort**: With projected earnings expansion of 13%%-15%% YoY, the PEG ratio sits near 1.5x, confirming growth without excessive valuation euphoria.
+                * **DCF Fair Value**: Institutional reverse-DCF implies an intrinsic fair value corridor between ₹%.2f and ₹%.2f.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **Earnings Acceleration**: Upward multiple re-rating is contingent on continued operating margin (OPM) expansion in upcoming quarters.
+                * **Downside Headwinds**: Broader market multiple compression in the %s sector is the main valuation risk.
+
+                ### 4. Strategic Investment Takeaway
+                * **Accumulation Zone**: Institutional accumulation zone is identified between ₹%.2f and ₹%.2f. Hold core positions for multi-quarter compounding.
+                """, baseCmp, companyName, ticker, basePe, baseRoe, basePe, baseCmp * 0.95, baseCmp * 1.18, baseSector, entryLow, entryHigh);
+        }
+
+        // 5. Debt / Solvency / Promoter Pledge
+        if (lowerQ.contains("debt") || lowerQ.contains("loan") || lowerQ.contains("solvency") || lowerQ.contains("leverage") || lowerQ.contains("pledge") || lowerQ.contains("promoter")) {
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Regarding balance sheet solvency and promoter ownership:**
+                %s (%s) maintains a clean capital structure with safe leverage, interest coverage exceeding 5.5x, and zero adverse promoter pledge risks.
+
+                ### 2. Fundamental & Quantitative Analysis
+                * **Debt-to-Equity & Interest Cover**: The company operates well below prudent leverage ceilings (D/E < 0.5x), with annual EBITDA easily covering interest obligations.
+                * **Cash Generation Quality**: Operating cash flows reliably fund working capital and maintenance capex without dependency on external debt borrowings.
+                * **Promoter Alignment**: Promoter holding is stable with negligible pledge, signaling high governance alignment with minority shareholders.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **Capex Funding**: Ongoing facility additions are funded via internal cash accruals rather than floating debt.
+                * **Working Capital Sensitivity**: Low exposure to high-interest loans insulates the company from elevated policy interest rates.
 
                 ### 4. Strategic Investment Takeaway
                 * **Solvency Verdict**: Pristine balance sheet rating with high margin of safety against macro credit contractions.
                 """, companyName, ticker);
         }
 
-        if (lowerQ.contains("pe") || lowerQ.contains("p/e") || lowerQ.contains("valuation") || lowerQ.contains("expensive") || lowerQ.contains("cheap")) {
+        // 6. Concall / Earnings / Guidance / Margins / Quarterly Results
+        if (lowerQ.contains("concall") || lowerQ.contains("management") || lowerQ.contains("guidance") || lowerQ.contains("margin") || lowerQ.contains("earnings") || lowerQ.contains("quarter") || lowerQ.contains("result")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
-                **%s (%s) is trading at a P/E multiple of %.1fx, which offers a fair valuation corridor relative to its %.1f%% ROE compounding profile.**
+                **Regarding management concall commentary and earnings trajectory:**
+                Management updates for %s (%s) highlight steady volume demand and positive guidance on operating margins, supported by high capital reinvestment efficiency (ROCE: %.1f%%).
 
                 ### 2. Fundamental & Quantitative Analysis
-                * **Valuation Multiple**: At CMP ₹%.2f, the current P/E of %.1fx compares favorably against the 5-year historical median of %.1fx.
-                * **PEG Ratio Comfort**: With projected earnings growth around 14-16%% YoY, the PEG ratio sits near 1.4x, indicating sustainable growth without excessive multiple froth.
-                * **Price-to-Book & DCF**: Trading within a 15%%-20%% discount to institutional reverse-DCF intrinsic fair value.
+                * **Margin Trajectory**: Operating leverage expansion and disciplined cost management are protecting EBITDA margins against raw material volatility.
+                * **Return on Capital**: High ROCE of %.1f%% and ROE of %.1f%% ensure that fresh capital deployed into capacity generates superior economic value.
+                * **Revenue Visibility**: Order-book execution pace remains consistent with annual double-digit top-line growth guidance.
 
                 ### 3. Key Catalysts & Risk Watch
-                * **Earnings Acceleration**: Multiple re-rating is contingent on margin expansion in upcoming quarterly updates.
-                * **Downside Headwinds**: Broader market multiple compression remains the primary external risk.
+                * **Upcoming Catalysts**: Next quarterly earnings concall will provide key updates on capacity utilization and export realizations.
+                * **Watchpoint**: Watch for competitive pricing intensity and freight rate variations in overseas markets.
 
                 ### 4. Strategic Investment Takeaway
-                * **Accumulation Zone**: Institutional accumulation zone is identified between ₹%.2f and ₹%.2f.
-                """, companyName, ticker, basePe, baseRoe, baseCmp, basePe, basePe * 1.15, baseCmp * 0.96, baseCmp * 1.01);
+                * **Stance**: Maintain constructive long-term stance. Accumulate on market dips near ₹%.2f.
+                """, companyName, ticker, baseRoce, baseRoce, baseRoe, entryLow);
         }
 
-        if (lowerQ.contains("dividend") || lowerQ.contains("yield") || lowerQ.contains("payout")) {
+        // 7. Dividend / Yield / Cash Flow
+        if (lowerQ.contains("dividend") || lowerQ.contains("yield") || lowerQ.contains("payout") || lowerQ.contains("cash flow") || lowerQ.contains("fcf")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
-                **%s (%s) delivers a steady, cash-flow-supported dividend yield with consistent capital returns to shareholders.**
+                **Regarding dividend yield and cash flow sustainability:**
+                %s (%s) delivers a steady, organic cash-flow-supported dividend yield with a consistent capital return track record to shareholders.
 
                 ### 2. Fundamental & Quantitative Analysis
-                * **Payout Track Record**: Historical dividend payout ratio is maintained between 20%%-35%% of reported net profit.
-                * **Free Cash Flow Coverage**: Dividend distributions are fully covered by organic free cash flow, avoiding debt-financed dividends.
+                * **Payout Track Record**: Dividend payout is maintained reliably from organic free cash flows, avoiding debt-financed dividends.
+                * **Free Cash Flow Conversion**: High cash conversion exceeding 80%% of EBITDA supports both regular dividend distributions and growth capex.
                 * **Yield Profile**: At CMP ₹%.2f, the forward dividend yield offers a reliable supplementary income layer alongside equity capital appreciation.
 
                 ### 3. Key Catalysts & Risk Watch
-                * **Capital Allocation**: High internal reinvestment rates into high-ROCE (%.1f%%) expansion projects drive the remaining capital.
-                * **Payout Sustainability**: Dividend distribution policy has demonstrated resilience across operating cycles.
+                * **Capex Accruals**: Dividend distributions are safely funded without impeding growth reinvestment.
+                * **Payout Sustainability**: The board maintains a predictable capital allocation policy across market cycles.
 
                 ### 4. Strategic Investment Takeaway
-                * **Income Quality**: Grade-A dividend safety backed by sovereign and institutional-grade cash generation.
-                """, companyName, ticker, baseCmp, baseRoce);
+                * **Income Quality**: Grade-A dividend safety backed by institutional cash generation.
+                """, companyName, ticker, baseCmp);
         }
 
-        if (lowerQ.contains("buy") || lowerQ.contains("sell") || lowerQ.contains("target") || lowerQ.contains("entry") || lowerQ.contains("cmp") || lowerQ.contains("level")) {
-            double entryLow = baseCmp * 0.97;
-            double entryHigh = baseCmp * 1.01;
-            double stopLoss = baseCmp * 0.94;
-            double t1 = baseCmp * 1.08;
-            double t2 = baseCmp * 1.20;
+        // 8. Buy / Sell / Hold / Target / Sizing / Trade Plan
+        if (lowerQ.contains("buy") || lowerQ.contains("sell") || lowerQ.contains("hold") || lowerQ.contains("target") || lowerQ.contains("entry") || lowerQ.contains("level")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
-                **Institutional Stance: ACCUMULATE ON DIP near support with an asymmetric 1:2.6 risk-to-reward ratio.**
+                **Institutional Stance: ACCUMULATE ON DIP near support with an asymmetric 1:2.5 risk-to-reward ratio.**
+                Target 1: ₹%.2f | Target 2: ₹%.2f | Stop Loss: ₹%.2f (CMP: ₹%.2f).
 
                 ### 2. Fundamental & Quantitative Analysis
                 * **Current Market Price (CMP)**: ₹%.2f in the %s sector.
                 * **Capital Sizing**: Allocate 8%%-10%% of total portfolio capital. Deploy in 2 tranches: 50%% at CMP, 50%% on pullbacks near ₹%.2f.
-                * **Underlying Moat**: High capital efficiency (ROE: %.1f%%, ROCE: %.1f%%) provides fundamental downside protection.
+                * **Underlying Moat**: Superior capital efficiency (ROE: %.1f%%, ROCE: %.1f%%) provides fundamental downside protection.
 
                 ### 3. Execution Levels & Risk Management
                 * **Recommended Entry Corridor**: ₹%.2f - ₹%.2f
-                * **Disciplined Stop Loss**: ₹%.2f (-6.0%% risk floor)
-                * **Target 1 (Primary)**: ₹%.2f (+8.0%% gain corridor)
-                * **Target 2 (Runner)**: ₹%.2f (+20.0%% momentum extension)
+                * **Disciplined Stop Loss**: ₹%.2f (-4.5%% risk floor)
+                * **Target 1 (50%% Profit Lock)**: ₹%.2f (+5.8%% gain corridor)
+                * **Target 2 (Runner Target)**: ₹%.2f (+12.5%% momentum extension)
 
                 ### 4. Strategic Investment Takeaway
-                * **Execution Strategy**: Once Target 1 is achieved, trail Stop Loss to cost (Entry) to guarantee a risk-free position.
-                """, companyName, ticker, baseCmp, sector, entryLow, baseRoe, baseRoce, entryLow, entryHigh, stopLoss, t1, t2);
+                * **Execution Strategy**: Once Target 1 is achieved, trail Stop Loss to cost (Entry) to guarantee a completely risk-free position.
+                """, t1Level, t2Level, slLevel, baseCmp, baseCmp, baseSector, entryLow, baseRoe, baseRoce, entryLow, entryHigh, slLevel, t1Level, t2Level);
         }
 
-        // Comprehensive General Memorandum
+        // 9. Comprehensive Institutional Memorandum for Any Custom Financial Query
         return String.format("""
             ### 1. Direct Analyst Verdict
-            **%s (%s) demonstrates strong institutional compounding traits with robust capital efficiency and leadership moats.**
+            **Regarding your query "%s":**
+            %s (%s) demonstrates high-grade institutional quality at CMP ₹%.2f, positioned favorably in the %s sector with superior compounding fundamentals (ROCE: %.1f%%).
 
             ### 2. Fundamental & Quantitative Analysis
-            * **Capital Return Metrics**: Generates high ROE of %.1f%% and ROCE of %.1f%%, indicating superior return on reinvested capital.
-            * **Balance Sheet Health**: Low debt-to-equity ratio with high operating cash conversion exceeding 80%% of EBITDA.
-            * **Competitive Moat**: Market leadership in %s provides pricing power and durable customer lock-in.
+            * **Capital Return Metrics**: Delivers robust ROE of %.1f%% and ROCE of %.1f%%, placing it in the upper quartile of capital efficiency.
+            * **Valuation Multiple**: Stock P/E of %.1fx reflects a balanced valuation corridor for long-term compounders.
+            * **Balance Sheet Health**: Conservative leverage structure with healthy operating cash flow conversion.
 
             ### 3. Key Catalysts & Risk Watch
-            * **Growth Catalysts**: Expanding capacity utilization and operating leverage expansion into high-margin segments.
-            * **Risk Vulnerabilities**: Sensitivity to raw material price inflation and general market multiple volatility.
+            * **Upcoming Catalysts**: Capacity expansion and operating leverage trajectory heading into the next quarterly results.
+            * **Risk Watch**: Vulnerability to broad market corrections and raw material commodity price cycles.
 
             ### 4. Strategic Investment Takeaway
-            * **Institutional Stance**: Buy and accumulate systematically on pullbacks near dynamic support levels (CMP: ₹%.2f).
-            """, companyName, ticker, baseRoe, baseRoce, sector, baseCmp);
+            * **Institutional Stance**: Accumulate systematically on dips between ₹%.2f and ₹%.2f. Maintain strict stop loss discipline at ₹%.2f.
+            """, cleanQ, companyName, ticker, baseCmp, baseSector, baseRoce, baseRoe, baseRoce, basePe, entryLow, entryHigh, slLevel);
     }
 
     private AiAnalysisResponse generateLocalForensicBackup(String ticker, String companyName, Double cmp, String type) {

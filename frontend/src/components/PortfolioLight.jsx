@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { portfolioApi, screenerApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import FormattedAnalystAnswer from './FormattedAnalystAnswer';
 import {
   Plus, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Loader2, Activity,
   TrendingDown, Check, MessageSquare, ShieldCheck, Lock, LogIn, AlertCircle,
@@ -944,74 +945,78 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
             {/* Response Card */}
             {discussResponse && (
               <div className="mt-6 pt-5 border-t border-slate-100 space-y-4 animate-in fade-in duration-300">
-                {/* Holding Action Verdict Badge */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Recommended Action</span>
-                    <span className={`text-base font-black mt-0.5 inline-block ${
-                      discussResponse.holdingAction?.includes('HOLD') ? 'text-emerald-700' :
-                      discussResponse.holdingAction?.includes('TRIM') ? 'text-amber-700' :
-                      discussResponse.holdingAction?.includes('AVERAGE') ? 'text-blue-700' : 'text-rose-700'
-                    }`}>
-                      {discussResponse.holdingAction}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs font-mono">
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">12M Target</span>
-                      <span className="font-bold text-emerald-600">₹{discussResponse.targetPrice12M?.toFixed(1)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">Stop Loss / Trigger</span>
-                      <span className="font-bold text-rose-600">₹{discussResponse.stopLossOrExitTrigger?.toFixed(1)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">Risk Level</span>
-                      <span className="font-bold text-slate-700">{discussResponse.riskLevel}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Direct Answer to User's Question */}
-                <div className="p-5 rounded-2xl bg-teal-50/90 border border-teal-200">
-                  <div className="flex items-center gap-2 text-[#0F766E] font-bold text-xs mb-1.5 font-sans">
-                    <Target className="w-4 h-4" />
-                    <span>Direct Resolution to Your Query: "{discussResponse.userQuery}"</span>
-                  </div>
-                  <p className="text-xs text-slate-800 leading-relaxed font-sans font-medium whitespace-pre-line">
-                    {discussResponse.userQueryAnswer}
-                  </p>
-                </div>
-
-                {/* Tax & Reallocation Blueprint */}
-                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-sans">
-                  <div className="flex items-center gap-1.5 text-amber-800 font-bold mb-1">
-                    <DollarSign className="w-4 h-4" />
-                    <span>Tax Advisory & Capital Reallocation Blueprint</span>
-                  </div>
-                  <p className="text-[11px] text-slate-700 leading-relaxed">
-                    {discussResponse.taxAndReallocationAdvice}
-                  </p>
-                </div>
-
-                {/* Strategic Institutional Bullet Points */}
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2 font-sans">
-                    Strategic Investment Takeaways:
-                  </span>
-                  <div className="space-y-2">
-                    {discussResponse.strategicBulletPoints?.map((pt, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700 font-sans">
-                        <Check className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
-                        <span>{pt}</span>
+                {discussResponse.holdingAction === 'SCOPE NOTICE' || discussResponse.userQueryAnswer?.includes('Scope Notice') ? (
+                  <FormattedAnalystAnswer text={discussResponse.userQueryAnswer} />
+                ) : (
+                  <>
+                    {/* Holding Action Verdict Badge */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Recommended Action</span>
+                        <span className={`text-base font-black mt-0.5 inline-block ${
+                          discussResponse.holdingAction?.includes('HOLD') ? 'text-emerald-700' :
+                          discussResponse.holdingAction?.includes('TRIM') ? 'text-amber-700' :
+                          discussResponse.holdingAction?.includes('AVERAGE') ? 'text-blue-700' : 'text-rose-700'
+                        }`}>
+                          {discussResponse.holdingAction}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="flex items-center gap-4 text-xs font-mono">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">12M Target</span>
+                          <span className="font-bold text-emerald-600">₹{discussResponse.targetPrice12M?.toFixed(1)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">Stop Loss / Trigger</span>
+                          <span className="font-bold text-rose-600">₹{discussResponse.stopLossOrExitTrigger?.toFixed(1)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">Risk Level</span>
+                          <span className="font-bold text-slate-700">{discussResponse.riskLevel}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="text-[10px] text-slate-400 font-mono text-right">
-                  Analysis Timestamp: {discussResponse.timestamp}
-                </div>
+                    {/* Direct Answer to User's Question */}
+                    <div className="p-5 rounded-2xl bg-white border border-teal-200 shadow-2xs">
+                      <div className="flex items-center gap-2 text-[#0F766E] font-bold text-xs mb-2 font-sans border-b border-teal-50 pb-1.5">
+                        <Target className="w-4 h-4 text-[#0F766E]" />
+                        <span>Direct Resolution to Your Query: "{discussResponse.userQuery}"</span>
+                      </div>
+                      <FormattedAnalystAnswer text={discussResponse.userQueryAnswer} />
+                    </div>
+
+                    {/* Tax & Reallocation Blueprint */}
+                    <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-sans">
+                      <div className="flex items-center gap-1.5 text-amber-800 font-bold mb-1">
+                        <DollarSign className="w-4 h-4" />
+                        <span>Tax Advisory & Capital Reallocation Blueprint</span>
+                      </div>
+                      <p className="text-[11px] text-slate-700 leading-relaxed">
+                        {discussResponse.taxAndReallocationAdvice}
+                      </p>
+                    </div>
+
+                    {/* Strategic Institutional Bullet Points */}
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2 font-sans">
+                        Strategic Investment Takeaways:
+                      </span>
+                      <div className="space-y-2">
+                        {discussResponse.strategicBulletPoints?.map((pt, idx) => (
+                          <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700 font-sans">
+                            <Check className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                            <span>{pt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-mono text-right">
+                      Analysis Timestamp: {discussResponse.timestamp}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

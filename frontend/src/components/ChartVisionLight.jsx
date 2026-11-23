@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { chartApi, screenerApi } from '../services/api';
+import FormattedAnalystAnswer from './FormattedAnalystAnswer';
 import {
   Upload, Search, Loader2, TrendingUp, TrendingDown, ShieldCheck,
   Target, AlertTriangle, CheckCircle2, Crosshair, ArrowRight,
@@ -151,7 +152,10 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFina
     try {
       const res = await screenerApi.askAnalyst({
         ticker: analysis?.detectedTickerOnChart || ticker,
-        question: `Based on chart analysis (${analysis?.actionVerdict || 'Setup'} in ${tradingCategory} category, CMP: ₹${analysis?.entryPrice}): ${q}`,
+        companyName: analysis?.detectedTickerOnChart || ticker,
+        question: q,
+        currentPrice: analysis?.entryPrice || entryP || 0,
+        sector: analysis?.sector || 'Equities',
       });
 
       setCopilotChatLog([
@@ -396,13 +400,11 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFina
 
             {/* Answer to User Query */}
             {analysis.userQueryAnswer && (
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-xs font-bold text-slate-800 block mb-1">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-xs font-bold text-slate-800 block mb-2 font-sans">
                   Analysis for Your Query:
                 </span>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  {analysis.userQueryAnswer}
-                </p>
+                <FormattedAnalystAnswer text={analysis.userQueryAnswer} />
               </div>
             )}
 
@@ -531,20 +533,26 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFina
             </div>
 
             {copilotChatLog.length > 0 && (
-              <div className="mb-3 space-y-2 max-h-40 overflow-y-auto pr-1">
+              <div className="mb-3 space-y-2.5 max-h-60 overflow-y-auto pr-1">
                 {copilotChatLog.map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`p-2 rounded-lg text-xs leading-relaxed ${
+                    className={`p-3 rounded-xl text-xs leading-relaxed ${
                       msg.sender === 'user'
-                        ? 'bg-slate-100 text-slate-900 ml-8 text-right'
-                        : 'bg-slate-50 text-slate-800 mr-8 border border-slate-200'
+                        ? 'bg-slate-100 text-slate-900 ml-8 text-right font-medium'
+                        : 'bg-white border border-teal-200/80 mr-4 shadow-2xs'
                     }`}
                   >
-                    <span className="font-bold block text-[10px] text-slate-400 uppercase">
-                      {msg.sender === 'user' ? 'You' : 'Analyst'}
+                    <span className={`font-bold block text-[10px] uppercase mb-1 ${
+                      msg.sender === 'user' ? 'text-slate-400' : 'text-[#0F766E]'
+                    }`}>
+                      {msg.sender === 'user' ? 'You' : 'Analyst Copilot'}
                     </span>
-                    {msg.text}
+                    {msg.sender === 'user' ? (
+                      <p className="text-slate-800">{msg.text}</p>
+                    ) : (
+                      <FormattedAnalystAnswer text={msg.text} />
+                    )}
                   </div>
                 ))}
               </div>

@@ -93,13 +93,20 @@ public class ChartVisionService {
                 ? String.format("NOTE: %d CHART IMAGES ATTACHED. Conduct cross-timeframe and multi-chart confluence (e.g. Higher Timeframe Trend vs Lower Timeframe Trigger).", totalCharts)
                 : (totalCharts == 1 ? "1 CHART IMAGE ATTACHED. Inspect candlestick structure, levels and indicators." : "NO IMAGE ATTACHED. Synthesize technical analysis based on live market quote.");
 
-        String queryInstruction = (userQuery != null && !userQuery.isBlank())
-                ? String.format("""
+        boolean isNonFinancial = userQuery != null && !userQuery.isBlank() && !geminiService.isFinancialQuery(userQuery);
+
+        String queryInstruction;
+        if (isNonFinancial) {
+            queryInstruction = "In 'userQueryAnswer', set the exact string: \"" + GeminiService.NON_FINANCIAL_WARNING.replace("\"", "'") + "\"";
+        } else if (userQuery != null && !userQuery.isBlank()) {
+            queryInstruction = String.format("""
                   USER'S CUSTOM QUESTION / SPECIFIC DILEMMA:
                   "%s"
                   CRITICAL MANDATE: You MUST directly and thoroughly solve this specific question in the 'userQueryAnswer' field with institutional clarity, exact price triggers, and trader discipline!
-                  """, userQuery.trim())
-                : "In 'userQueryAnswer', provide a decisive trader executive roadmap summarizing the primary action trigger.";
+                  """, userQuery.trim());
+        } else {
+            queryInstruction = "In 'userQueryAnswer', provide a decisive trader executive roadmap summarizing the primary action trigger.";
+        }
 
         double slMultiplier = switch (category) {
             case "INTRADAY" -> 0.988; // 1.2% risk for intraday
@@ -350,9 +357,14 @@ public class ChartVisionService {
                     detectedTicker = ticker;
                 }
 
-                String defaultAnswer = userQuery != null && !userQuery.isBlank()
-                        ? String.format("Based on chart structure, entry is valid above ₹%.2f with strict stop loss at ₹%.2f. Adhere to position sizing.", cmp, sl)
-                        : "Maintain disciplined entry with 50% initial size, locking gains at Target 1 and trailing remaining with 20 EMA.";
+                String defaultAnswer;
+                if (userQuery != null && !userQuery.isBlank() && !geminiService.isFinancialQuery(userQuery)) {
+                    defaultAnswer = GeminiService.NON_FINANCIAL_WARNING;
+                } else if (userQuery != null && !userQuery.isBlank()) {
+                    defaultAnswer = String.format("Based on chart structure, entry is valid above ₹%.2f with strict stop loss at ₹%.2f. Adhere to position sizing.", cmp, sl);
+                } else {
+                    defaultAnswer = "Maintain disciplined entry with 50% initial size, locking gains at Target 1 and trailing remaining with 20 EMA.";
+                }
 
                 String defaultTripleGrade = root.path("tripleConfluenceGrade").asText("AAA (MAXIMUM CONVICTION)");
                 String defaultConfluenceVerdict = root.path("confluenceVerdict").asText(
@@ -452,9 +464,14 @@ public class ChartVisionService {
             }
         }
 
-        String fallbackAns = userQuery != null && !userQuery.isBlank()
-                ? String.format("Regarding '%s': Current price action at ₹%.2f indicates strong buyer defense. Enter above breakout level with SL ₹%.2f.", userQuery, cmp, sl)
-                : "Enter on confirmed volume breakout. Lock 50% profit at Target 1 and trail balance with 20 EMA.";
+        String fallbackAns;
+        if (userQuery != null && !userQuery.isBlank() && !geminiService.isFinancialQuery(userQuery)) {
+            fallbackAns = GeminiService.NON_FINANCIAL_WARNING;
+        } else if (userQuery != null && !userQuery.isBlank()) {
+            fallbackAns = String.format("Regarding '%s': Current price action at ₹%.2f indicates strong buyer defense. Enter above breakout level with SL ₹%.2f.", userQuery, cmp, sl);
+        } else {
+            fallbackAns = "Enter on confirmed volume breakout. Lock 50% profit at Target 1 and trail balance with 20 EMA.";
+        }
 
         return ChartAnalysisResponse.builder()
                 .ticker(ticker)
