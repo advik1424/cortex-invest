@@ -191,7 +191,7 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
 
           {/* Screener Navigation Tabs & Auth */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-            <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-semibold">
+            <nav className="flex items-center space-x-1 sm:space-x-2 text-xs font-semibold overflow-x-auto max-w-[55vw] sm:max-w-none scrollbar-none py-1">
               <button
                 onClick={() => setActiveView('home')}
                 className={`px-3 py-1.5 rounded-md transition-colors ${
@@ -291,7 +291,7 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
                           className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center justify-between"
                         >
                           <span>My Portfolio & Copilot</span>
-                          <span className="text-[10px] bg-teal-50 text-[#0F766E] px-1.5 py-0.5 rounded font-mono font-bold">5 Stocks</span>
+                          <span className="text-[10px] bg-teal-50 text-[#0F766E] px-1.5 py-0.5 rounded font-mono font-semibold">Active Holdings</span>
                         </button>
                       </div>
 
@@ -403,7 +403,7 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span>Continue with Google</span>
+                  <span>Instant Private Session (Guest)</span>
                 </button>
               )}
 

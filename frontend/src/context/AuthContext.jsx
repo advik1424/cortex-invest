@@ -88,14 +88,15 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    // Direct institutional sign-in with email
-    const email = emailParam || 'aditya.invest@gmail.com';
-    const computedName = nameParam || (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1));
+    // Direct institutional sign-in with email or randomized clean guest session
+    const uniqueSuffix = Math.random().toString(36).substring(2, 8);
+    const email = emailParam ? emailParam.trim().toLowerCase() : `trader_${uniqueSuffix}@cortex.invest`;
+    const computedName = nameParam || (emailParam ? (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)) : `Trader ${uniqueSuffix.toUpperCase()}`);
     const newUser = {
       name: computedName,
       email: email,
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      provider: emailParam ? 'email' : 'google',
+      provider: emailParam ? 'email' : 'guest',
       verified: true,
       loginTime: new Date().toLocaleTimeString(),
     };

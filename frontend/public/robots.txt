@@ -1,0 +1,8 @@
+# Robots.txt for Cortex Invest - Institutional Terminal
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /h2-console/
+
+Sitemap: https://cortex-invest-theta.vercel.app/sitemap.xml

@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +12,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "portfolio_holdings")
+@Table(
+    name = "portfolio_holdings",
+    indexes = {
+        @Index(name = "idx_holdings_user", columnList = "userEmail"),
+        @Index(name = "idx_holdings_ticker", columnList = "ticker")
+    }
+)
 @Data
 @Builder
 @NoArgsConstructor

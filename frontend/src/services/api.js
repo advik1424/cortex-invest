@@ -78,4 +78,11 @@ export const radarApi = {
   getPortfolioAudit: () => api.get('/radar/portfolio-audit'),
 };
 
+export const marketApi = {
+  getIntelligence: () => api.get('/market/intelligence'),
+  getNewsSentiment: () => api.get('/market/news-sentiment'),
+  getSectorInsights: () => api.get('/market/sector-insights'),
+  getQuote: (ticker) => api.get(`/market/quote/${ticker}`),
+};
+
 export default api;
