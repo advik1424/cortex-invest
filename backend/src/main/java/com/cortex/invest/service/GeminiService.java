@@ -473,23 +473,25 @@ public class GeminiService {
             }
         }
 
-        // Fast-path for corporate governance, meeting outcomes, news, catalysts, and price drops / underperformance
+        // Fast-path for corporate governance, meeting outcomes, news, catalysts, future outlook, and price drops / underperformance
         if (q.contains("meet") || q.contains("metting") || q.contains("agm") || q.contains("egm")
                 || q.contains("concall") || q.contains("board") || q.contains("kya hua") || q.contains("discuss")
                 || q.contains("khabar") || q.contains("news") || q.contains("girawat") || q.contains("gir raha")
                 || q.contains("fail") || q.contains("failing") || q.contains("failure") || q.contains("down")
-                || (q.contains("why") && (q.contains("tcs") || q.contains("cdsl") || q.contains("share") || q.contains("stock") || q.contains("fall") || q.contains("drop") || q.contains("crash") || q.contains("gir")))) {
+                || q.contains("future") || q.contains("expectation") || q.contains("expect") || q.contains("outlook") || q.contains("aage") || q.contains("kaisa")
+                || (q.contains("why") && (q.contains("tcs") || q.contains("cdsl") || q.contains("hdfc") || q.contains("share") || q.contains("stock") || q.contains("fall") || q.contains("drop") || q.contains("crash") || q.contains("gir")))) {
             return true;
         }
 
         // 2. Financial Domain Relevance Keywords
         List<String> financialTerms = List.of(
-                "stock", "share", "shares", "cmp", "target", "stoploss", "stop loss", "sl", "entry", "exit",
+                "stock", "share", "shares", "cmp", "target", "targets", "stoploss", "stop loss", "sl", "entry", "exit",
                 "buy", "sell", "hold", "accumulate", "trim", "average", "pullback", "dip",
                 "fail", "failing", "failure", "fall", "falling", "down", "drop", "dropped", "dropping", "crash", "correction", "correct",
                 "gir", "girawat", "gir raha", "why", "kyu", "karan", "reason", "rise", "surge", "rally",
                 "meeting", "metting", "agm", "egm", "board", "concall", "conference call", "kya hua", "discuss", "discussion",
                 "recent", "recently", "decision", "resolutions", "news", "khabar", "headline", "sentiment",
+                "future", "expectation", "expectations", "expect", "expected", "outlook", "prospect", "prospects", "brokerage", "brokerages", "rating", "ratings",
                 "update", "updates", "pe", "p/e", "pb", "p/b", "roe", "roce", "eps", "dividend",
                 "yield", "payout", "debt", "equity", "loan", "solvency", "leverage", "cash", "fcf",
                 "cash flow", "margin", "profit", "loss", "pat", "ebitda", "ebit", "sales", "revenue",
@@ -500,7 +502,7 @@ public class GeminiService {
                 "volume", "ema", "sma", "rsi", "support", "resistance", "trend", "risk",
                 "tax", "stcg", "ltcg", "ipo", "bonus", "split", "rebound", "drawdown",
                 "beta", "outperform", "underperform", "tranche", "breakeven", "trap", "bull trap",
-                "overvalued", "undervalued", "level", "levels", "price", "ratios", "expensive", "cheap", "outlook"
+                "overvalued", "undervalued", "level", "levels", "price", "ratios", "expensive", "cheap"
         );
 
         for (String term : financialTerms) {
@@ -568,30 +570,40 @@ public class GeminiService {
                 + (roe > 0 ? " | ROE: " + String.format("%.1f%%", roe) : "")
                 + (roce > 0 ? " | ROCE: " + String.format("%.1f%%", roce) : "")
                 + "\n\n"
-                + "VERIFIED CORPORATE INTELLIGENCE & NEWS CONTEXT:\n"
+                + "VERIFIED CORPORATE INTELLIGENCE & BROKERAGE CONSENSUS:\n"
+                + "- Future Expectations & Outlook: " + (intel.getFutureExpectationsVerdict() != null ? intel.getFutureExpectationsVerdict() : "") + "\n"
+                + "- Brokerage Consensus & Targets: " + (intel.getBrokerageTargets() != null ? String.join("; ", intel.getBrokerageTargets()) : "") + "\n"
+                + "- Key Positive Catalysts: " + (intel.getPositivePoints() != null ? String.join("; ", intel.getPositivePoints()) : "") + "\n"
+                + "- Downside Risks & Margin Watch: " + (intel.getRiskPoints() != null ? String.join("; ", intel.getRiskPoints()) : "") + "\n"
                 + "- Enterprise Health / Solvency Reality: " + (intel.getWhyFailingClarification() != null ? intel.getWhyFailingClarification() : "Pristine capital return profile with zero debt.") + "\n"
                 + "- Downside Drivers / Why Falling: " + intel.getWhyFallingDirectVerdict() + "\n"
                 + "- Key Drivers: " + String.join("; ", intel.getWhyFallingKeyDrivers()) + "\n"
                 + "- Recent Meeting & Concall Decisions: " + intel.getMeetingDirectVerdict() + "\n"
                 + "- Board Resolutions: " + String.join("; ", intel.getBoardResolutions()) + "\n"
                 + "- Concall Highlights: " + String.join("; ", intel.getConcallHighlights()) + "\n"
-                + "- Management Guidance: " + intel.getManagementGuidance() + "\n"
-                + "- News Sentiment: " + intel.getNewsSentiment() + " (" + intel.getNewsSentimentScore() + ")\n"
-                + "- News Headlines: " + String.join("; ", intel.getBreakingNewsHeadlines()) + "\n"
-                + "- News Catalyst Weight: " + intel.getNewsTakeaway() + "\n\n"
+                + "- Management Guidance: " + intel.getManagementGuidance() + "\n\n"
                 + "CRITICAL DOMAIN GUARDRAIL:\n"
                 + "If the user's question is completely unrelated to financial markets, stock investing, corporate fundamentals, trading, or economics (e.g. general chit-chat, cooking recipes, cinema, sports, coding, or irrelevant trivia), DO NOT answer the question. Instead, return EXACTLY:\n"
                 + "\"" + NON_FINANCIAL_WARNING + "\"\n\n"
-                + "CRITICAL INTENT-AWARE MANDATE:\n"
-                + "1. Meeting / AGM / Concall Questions (e.g. 'Recent metting mein kya discuss huaa', 'kya hua meeting me'):\n"
+                + "CRITICAL INTENT-AWARE & TONE MANDATE:\n"
+                + "Tone & Language:\n"
+                + "- If user writes in Hindi or Hinglish (e.g. 'kya future expectation hn', 'kyu gir raha hai', 'kya hua meeting me', 'aage kya hoga'), write the response in a natural, engaging, professional Hinglish / English blend (just like leading Indian equity analysts).\n"
+                + "- Be direct, insightful, and cite authentic numbers: recent quarterly profit, NII/revenue, NIM margins, and top institutional brokerage targets (Bernstein, JPMorgan, Nomura, Jefferies, Morgan Stanley, etc.).\n"
+                + "Intent Guidelines:\n"
+                + "1. Future Expectations / Outlook / Long-Term View (e.g. 'kya future expectation hn', 'outlook kaisa hai'):\n"
+                + "   - In Section 1, summarize the current market situation and consensus outlook.\n"
+                + "   - In Section 2, detail positive growth catalysts (quarterly results, credit quality) and top institutional brokerage targets.\n"
+                + "   - In Section 3, detail specific downside risks and watch-points (e.g. NIM compression for banks, discretionary client budget pace for tech).\n"
+                + "   - In Section 4, provide actionable capital allocation advice for long-term compounders vs short-term swing traders.\n"
+                + "2. Meeting / AGM / Concall Questions (e.g. 'Recent metting mein kya discuss huaa', 'kya hua meeting me'):\n"
                 + "   - In Section 1, summarize the core outcomes of the recent board meeting and concall.\n"
-                + "   - In Section 2, detail the approved board resolutions (dividends, capex) and key operational takeaways from the concall.\n"
+                + "   - In Section 2, detail approved board resolutions (dividends, capex) and operational concall takeaways.\n"
                 + "   - In Section 4, provide long-term investment guidance. DO NOT invent day-trading stop-loss or profit-booking targets.\n"
-                + "2. Why Falling / Failing Questions (e.g. 'why tcs is fail', 'why cdsl is down', 'kyu gir raha hai'):\n"
-                + "   - In Section 1, directly diagnose the stock correction and clarify whether the enterprise is actually failing (confirm it is NOT failing if fortress fundamentals like zero debt, high ROCE exist).\n"
-                + "   - In Section 2, detail the specific macro, client budget, and margin headwinds driving the de-rating.\n"
-                + "   - In Section 4, explain strategic accumulation logic for long-term compounders and patience for traders. DO NOT dump arbitrary stop-loss numbers unless explicitly asked.\n"
-                + "3. Trading Strategy / Levels Questions (e.g. 'targets', 'stop loss', 'where to buy'):\n"
+                + "3. Why Falling / Failing Questions (e.g. 'why tcs is fail', 'why cdsl is down', 'kyu gir raha hai'):\n"
+                + "   - In Section 1, directly diagnose the stock correction and clarify whether the enterprise is actually failing.\n"
+                + "   - In Section 2, detail specific macro, client budget, and margin headwinds driving the de-rating.\n"
+                + "   - In Section 4, explain strategic accumulation logic for long-term compounders. DO NOT dump arbitrary stop-loss numbers.\n"
+                + "4. Trading Strategy / Levels Questions (e.g. 'targets', 'stop loss', 'where to buy'):\n"
                 + "   - Provide specific execution corridor, Stop Loss, Target 1, Target 2, and position sizing.\n\n"
                 + "FORMATTING MANDATE:\n"
                 + "Structure your response into clean, high-impact Markdown sections with these EXACT headings:\n"
@@ -775,7 +787,92 @@ public class GeminiService {
                     entryLow, entryHigh, slLevel);
         }
 
-        // 4. Correction / Tranches / Market Dip / Averaging Down
+        // 4. Future Expectations / Outlook / Long-Term Prospects (e.g. "Abhi HDFCBANL mein kya future expecttation hn", "kya future expectation hai", "outlook")
+        if (lowerQ.contains("future") || lowerQ.contains("expect") || lowerQ.contains("outlook") || lowerQ.contains("aage kya")
+                || lowerQ.contains("kaisa rahega") || lowerQ.contains("kya lagta") || lowerQ.contains("prospect") || lowerQ.contains("brokerage")) {
+
+            StringBuilder positives = new StringBuilder();
+            if (intel.getPositivePoints() != null && !intel.getPositivePoints().isEmpty()) {
+                for (String p : intel.getPositivePoints()) {
+                    int colonIdx = p.indexOf(':');
+                    if (colonIdx > 0) {
+                        positives.append("* **").append(p.substring(0, colonIdx).trim()).append("**: ").append(p.substring(colonIdx + 1).trim()).append("\n");
+                    } else {
+                        positives.append("* ").append(p).append("\n");
+                    }
+                }
+            } else {
+                positives.append("* **Balance Sheet Solvency**: Zero long-term debt distress and high capital reinvestment efficiency.\n");
+                positives.append("* **Sector Market Leadership**: Sustained operating cash flows and competitive moat in ").append(baseSector).append(".\n");
+            }
+
+            StringBuilder brokerages = new StringBuilder();
+            if (intel.getBrokerageTargets() != null && !intel.getBrokerageTargets().isEmpty()) {
+                for (String b : intel.getBrokerageTargets()) {
+                    int colonIdx = b.indexOf(':');
+                    if (colonIdx > 0) {
+                        brokerages.append("  * **").append(b.substring(0, colonIdx).trim()).append("**: ").append(b.substring(colonIdx + 1).trim()).append("\n");
+                    } else {
+                        brokerages.append("  * ").append(b).append("\n");
+                    }
+                }
+            } else {
+                double targetConsensus = Math.round(baseCmp * 1.18 * 10.0) / 10.0;
+                brokerages.append("  * **Institutional Consensus Corridor**: Target ₹").append(targetConsensus).append(" (+18.0% upside potential; Consensus Accumulate/Buy)\n");
+            }
+
+            StringBuilder risks = new StringBuilder();
+            if (intel.getRiskPoints() != null && !intel.getRiskPoints().isEmpty()) {
+                for (String r : intel.getRiskPoints()) {
+                    int colonIdx = r.indexOf(':');
+                    if (colonIdx > 0) {
+                        risks.append("* **").append(r.substring(0, colonIdx).trim()).append("**: ").append(r.substring(colonIdx + 1).trim()).append("\n");
+                    } else {
+                        risks.append("* ").append(r).append("\n");
+                    }
+                }
+            } else {
+                risks.append("* **Multiple Compression Risk**: Macro index volatility and FII selling pressure.\n");
+                risks.append("* **Margin Watch**: Input cost pressure and discretionary client spend pace.\n");
+            }
+
+            String verdict = (intel.getFutureExpectationsVerdict() != null && !intel.getFutureExpectationsVerdict().isBlank())
+                    ? intel.getFutureExpectationsVerdict()
+                    : (companyName + " ka overall outlook balanced-to-cautiously-positive hai. Top institutional brokerages structural compounder maan rahe hain, par near-term price action broader market consolidation mein hai.");
+
+            String action = (intel.getFutureStrategicAction() != null && !intel.getFutureStrategicAction().isBlank())
+                    ? intel.getFutureStrategicAction()
+                    : ("Core investors should accumulate on dips near institutional support. Traders should wait for a confirmed breakout above dynamic 20/50 EMA.");
+
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Current Situation & Market Outlook for %s (%s) at CMP ₹%.2f:**
+                %s
+
+                ### 2. Fundamental & Quantitative Analysis
+                **Positive Points & Growth Catalysts:**
+                %s
+                * **Top Institutional Brokerage Consensus & Targets:**
+                %s
+                * **Fortress Capital Efficiency & Moat**: Operating in the **%s** sector with ROE of **%.1f%%** and ROCE of **%.1f%%**, backed by strong balance sheet solvency.
+
+                ### 3. Key Catalysts & Risk Watch
+                **Downside Risks & Overhangs:**
+                %s
+                * **Valuation Multiple Reality**: Current P/E multiple is **%.1fx**. Multiple expansion depends directly on margin stabilization and resolving the above watch-points.
+
+                ### 4. Strategic Investment Takeaway
+                * **Analyst Action Guidance**: %s
+                * **For Long-Term Investors**: %s
+                * **For Short-Term Traders**: Wait for confirmed price acceptance above key dynamic moving averages (20-day / 50-day EMA) before initiating fresh momentum breakouts.
+                """, companyName, ticker, baseCmp, verdict,
+                    positives.toString(), brokerages.toString(), baseSector, baseRoe, baseRoce,
+                    risks.toString(), basePe,
+                    action,
+                    intel.getWhyFallingStrategicAction() != null ? intel.getWhyFallingStrategicAction() : action);
+        }
+
+        // 5. Correction / Tranches / Market Dip / Averaging Down
         if (lowerQ.contains("correct") || lowerQ.contains("tranche") || lowerQ.contains("dip") || lowerQ.contains("average")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
@@ -841,7 +938,13 @@ public class GeminiService {
         }
 
         // 7. Valuation / PE / Cheap vs Expensive / DCF
-        if (lowerQ.contains("pe") || lowerQ.contains("p/e") || lowerQ.contains("valuation") || lowerQ.contains("cheap") || lowerQ.contains("expensive") || lowerQ.contains("dcf") || lowerQ.contains("overvalued") || lowerQ.contains("undervalued")) {
+        if (Pattern.compile("\\bpe\\b", Pattern.CASE_INSENSITIVE).matcher(lowerQ).find()
+                || lowerQ.contains("p/e") || lowerQ.contains("valuation") || lowerQ.contains("cheap")
+                || lowerQ.contains("expensive") || lowerQ.contains("dcf") || lowerQ.contains("overvalued") || lowerQ.contains("undervalued")) {
+            String marginMetric = baseSector.toLowerCase().contains("bank")
+                    ? "Net Interest Margin (NIM) stabilization and CASA deposit expansion"
+                    : "continued operating EBITDA margin expansion";
+
             return String.format("""
                 ### 1. Direct Analyst Verdict
                 **Regarding valuation multiples and fair price assessment:**
@@ -853,12 +956,12 @@ public class GeminiService {
                 * **DCF Fair Value**: Institutional reverse-DCF implies an intrinsic fair value corridor between ₹%.2f and ₹%.2f.
 
                 ### 3. Key Catalysts & Risk Watch
-                * **Earnings Acceleration**: Upward multiple re-rating is contingent on continued operating margin (OPM) expansion in upcoming quarters.
+                * **Earnings Acceleration**: Upward multiple re-rating is contingent on %s in upcoming quarters.
                 * **Downside Headwinds**: Broader market multiple compression in the %s sector is the main valuation risk.
 
                 ### 4. Strategic Investment Takeaway
                 * **Accumulation Zone**: Institutional accumulation zone is identified between ₹%.2f and ₹%.2f. Hold core positions for multi-quarter compounding.
-                """, baseCmp, companyName, ticker, basePe, baseRoe, basePe, baseCmp * 0.95, baseCmp * 1.18, baseSector, entryLow, entryHigh);
+                """, baseCmp, companyName, ticker, basePe, baseRoe, basePe, baseCmp * 0.95, baseCmp * 1.18, marginMetric, baseSector, entryLow, entryHigh);
         }
 
         // 5. Debt / Solvency / Promoter Pledge

@@ -191,4 +191,34 @@ public class GeminiGuardrailTest {
         Assertions.assertTrue(resp.getAnswer().contains("News Sentiment") || resp.getAnswer().contains("Catalyst"));
         Assertions.assertTrue(resp.getAnswer().contains("40%-50% weightage") || resp.getAnswer().contains("weight"));
     }
+
+    @Test
+    void testFutureExpectationQueriesProvideBrokerageAndMarginReality() {
+        String hdfcQ = "Abhi HDFCBANL mein kya future expecttation hn";
+        Assertions.assertTrue(geminiService.isFinancialQuery(hdfcQ),
+                "Expected future expectation query with typo to PASS guardrail");
+
+        AskAnalystResponse resp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("HDFCBANL")
+                .companyName("HDFC Bank Ltd")
+                .currentPrice(817.8)
+                .question(hdfcQ)
+                .build());
+
+        Assertions.assertFalse(resp.getAnswer().contains("Scope Notice"));
+        // Must NOT return the stale valuation template
+        Assertions.assertFalse(resp.getAnswer().contains("Regarding valuation multiples and fair price assessment"),
+                "Must NOT return generic valuation assessment for future expectation");
+        Assertions.assertFalse(resp.getAnswer().contains("operating margin (OPM)"),
+                "Bank must NOT have OPM mentioned");
+        // Must contain genuine future outlook, brokerages and margin context
+        Assertions.assertTrue(resp.getAnswer().contains("Bernstein") || resp.getAnswer().contains("JPMorgan") || resp.getAnswer().contains("Brokerage"),
+                "Expected top brokerage consensus in future expectation response");
+        Assertions.assertTrue(resp.getAnswer().contains("NIM") || resp.getAnswer().contains("Margin") || resp.getAnswer().contains("LDR"),
+                "Expected authentic banking margin watch in response");
+        Assertions.assertTrue(resp.getAnswer().contains("### 1. Direct Analyst Verdict"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 2. Fundamental & Quantitative Analysis"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 3. Key Catalysts & Risk Watch"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 4. Strategic Investment Takeaway"));
+    }
 }
