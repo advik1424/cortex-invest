@@ -16,6 +16,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -110,6 +111,26 @@ public class MarketDataService {
         return buildDynamicMetrics(cleanTicker, extractedName, livePrice, prevCl, dayH, dayL, high52, low52, vol, exch);
     }
 
+    public record InstitutionalProfile(String companyName, String sector, double roe, double roce, double pe, double de) {}
+
+    private static final Map<String, InstitutionalProfile> PREMIER_PROFILES = Map.ofEntries(
+            Map.entry("TCS", new InstitutionalProfile("Tata Consultancy Services Ltd", "Information Technology", 36.8, 48.2, 27.4, 0.00)),
+            Map.entry("CDSL", new InstitutionalProfile("Central Depository Services (India) Ltd", "Capital Markets & Broking", 31.4, 36.2, 48.0, 0.00)),
+            Map.entry("RELIANCE", new InstitutionalProfile("Reliance Industries Ltd", "Oil & Gas / Diversified", 11.2, 12.8, 24.5, 0.42)),
+            Map.entry("TATAMOTORS", new InstitutionalProfile("Tata Motors Ltd", "Auto OEMs", 24.8, 34.0, 9.4, 0.65)),
+            Map.entry("HDFCBANK", new InstitutionalProfile("HDFC Bank Ltd", "Private Bank", 16.4, 18.5, 18.2, 0.95)),
+            Map.entry("INFY", new InstitutionalProfile("Infosys Ltd", "Information Technology", 31.5, 41.2, 25.8, 0.00)),
+            Map.entry("ITC", new InstitutionalProfile("ITC Ltd", "FMCG", 29.4, 38.5, 24.0, 0.00)),
+            Map.entry("BEL", new InstitutionalProfile("Bharat Electronics Ltd", "Defence & Aerospace", 26.5, 34.2, 38.0, 0.00)),
+            Map.entry("HAL", new InstitutionalProfile("Hindustan Aeronautics Ltd", "Defence & Aerospace", 28.2, 36.5, 34.0, 0.00)),
+            Map.entry("SBIN", new InstitutionalProfile("State Bank of India", "PSU Bank", 17.2, 19.5, 10.5, 1.10)),
+            Map.entry("ICICIBANK", new InstitutionalProfile("ICICI Bank Ltd", "Private Bank", 18.5, 20.8, 17.5, 0.85)),
+            Map.entry("LT", new InstitutionalProfile("Larsen & Toubro Ltd", "Capital Goods & Infra", 15.8, 17.2, 32.5, 0.75)),
+            Map.entry("BHARTIARTL", new InstitutionalProfile("Bharti Airtel Ltd", "Telecommunications", 19.5, 22.0, 38.0, 1.20)),
+            Map.entry("ASIANPAINT", new InstitutionalProfile("Asian Paints Ltd", "Paints & Decorative", 27.5, 35.0, 49.0, 0.05)),
+            Map.entry("TITAN", new InstitutionalProfile("Titan Company Ltd", "Consumer Discretionary", 30.5, 36.0, 72.0, 0.15))
+    );
+
     private LiveQuote buildDynamicMetrics(String ticker, String extractedName, Double livePrice, Double prevClose,
                                           Double dayHigh, Double dayLow, Double high52,
                                           Double low52, Long volume, String exchange) {
@@ -126,17 +147,21 @@ public class MarketDataService {
         double finalHigh52 = high52 != null ? high52 : (finalPrice * 1.28);
         double finalLow52 = low52 != null ? low52 : (finalPrice * 0.72);
 
-        double pe = Math.round((18.0 + (Math.abs(ticker.hashCode() % 300) / 10.0)) * 10.0) / 10.0;
+        InstitutionalProfile profile = PREMIER_PROFILES.get(ticker);
+        double pe = profile != null ? profile.pe() : Math.round((18.0 + (Math.abs(ticker.hashCode() % 300) / 10.0)) * 10.0) / 10.0;
         double bv = Math.round((finalPrice * 0.35) * 10.0) / 10.0;
-        double roce = Math.round((14.0 + (Math.abs(ticker.hashCode() % 160) / 10.0)) * 10.0) / 10.0;
-        double roe = Math.round((12.0 + (Math.abs(ticker.hashCode() % 140) / 10.0)) * 10.0) / 10.0;
-        double de = Math.round((0.15 + (Math.abs(ticker.hashCode() % 80) / 100.0)) * 100.0) / 100.0;
+        double roce = profile != null ? profile.roce() : Math.round((14.0 + (Math.abs(ticker.hashCode() % 160) / 10.0)) * 10.0) / 10.0;
+        double roe = profile != null ? profile.roe() : Math.round((12.0 + (Math.abs(ticker.hashCode() % 140) / 10.0)) * 10.0) / 10.0;
+        double de = profile != null ? profile.de() : Math.round((0.15 + (Math.abs(ticker.hashCode() % 80) / 100.0)) * 100.0) / 100.0;
         String mcap = "₹ " + String.format("%,.0f", finalPrice * 16.5) + " Cr";
+
+        String finalName = profile != null ? profile.companyName() : (extractedName != null && !extractedName.equals(ticker) ? extractedName : (ticker + " Ltd"));
+        String finalSector = profile != null ? profile.sector() : (DualEngineRadarService.MOAT_LEADERS.containsKey(ticker) ? DualEngineRadarService.MOAT_LEADERS.get(ticker).moat() : "Diversified Equities");
 
         return LiveQuote.builder()
                 .symbol(ticker)
-                .companyName(extractedName != null && !extractedName.equals(ticker) ? extractedName : (ticker + " Ltd"))
-                .sector("Public Equities")
+                .companyName(finalName)
+                .sector(finalSector)
                 .currency("INR")
                 .currentPrice(round(finalPrice))
                 .previousClose(round(finalPrevClose))

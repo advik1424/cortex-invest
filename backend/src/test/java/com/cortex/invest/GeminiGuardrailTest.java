@@ -94,7 +94,27 @@ public class GeminiGuardrailTest {
 
     @Test
     void testWhyFallingQueriesProvideDirectCauses() {
-        // Query 1: why tcs share is fall
+        // Query 1: why tcs is fail
+        String tcsFailQ = "why tcs is fail";
+        Assertions.assertTrue(geminiService.isFinancialQuery(tcsFailQ), "Expected 'why tcs is fail' to pass guardrail");
+        AskAnalystResponse tcsFailResp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("TCS")
+                .companyName("Tata Consultancy Services")
+                .currentPrice(2460.0)
+                .question(tcsFailQ)
+                .build());
+
+        Assertions.assertFalse(tcsFailResp.getAnswer().contains("Scope Notice"), "Should not trigger Scope Notice");
+        Assertions.assertTrue(tcsFailResp.getAnswer().contains("NOT failing") || tcsFailResp.getAnswer().contains("not failing"),
+                "Expected clear clarification that TCS is NOT failing");
+        Assertions.assertTrue(tcsFailResp.getAnswer().contains("BFSI") || tcsFailResp.getAnswer().contains("discretionary"),
+                "Expected fundamental cause for TCS slowdown");
+        Assertions.assertFalse(tcsFailResp.getAnswer().contains("Target 1 at"),
+                "Must NOT dump irrelevant Target 1 for a why failing query");
+        Assertions.assertFalse(tcsFailResp.getAnswer().contains("Strict Stop Loss"),
+                "Must NOT dump irrelevant Stop Loss for a why failing query");
+
+        // Query 2: why tcs share is fall
         String tcsQ = "why tcs share is fall";
         Assertions.assertTrue(geminiService.isFinancialQuery(tcsQ), "Expected 'why tcs share is fall' to pass guardrail");
         AskAnalystResponse tcsResp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
@@ -107,10 +127,10 @@ public class GeminiGuardrailTest {
         Assertions.assertFalse(tcsResp.getAnswer().contains("Scope Notice"), "Should not trigger Scope Notice");
         Assertions.assertFalse(tcsResp.getAnswer().contains("Regarding your inquiry on market corrections and tranche deployment"),
                 "Must NOT return generic tranche deployment template for why falling");
-        Assertions.assertTrue(tcsResp.getAnswer().contains("Direct Cause Analysis") || tcsResp.getAnswer().contains("BFSI") || tcsResp.getAnswer().contains("discretionary"),
+        Assertions.assertTrue(tcsResp.getAnswer().contains("BFSI") || tcsResp.getAnswer().contains("discretionary"),
                 "Expected direct fundamental cause for TCS fall: " + tcsResp.getAnswer());
 
-        // Query 2: why cdsl is down
+        // Query 3: why cdsl is down
         String cdslQ = "why cdsl is down";
         Assertions.assertTrue(geminiService.isFinancialQuery(cdslQ), "Expected 'why cdsl is down' to pass guardrail");
         AskAnalystResponse cdslResp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
@@ -123,14 +143,14 @@ public class GeminiGuardrailTest {
         Assertions.assertFalse(cdslResp.getAnswer().contains("Scope Notice"), "Should not trigger Scope Notice");
         Assertions.assertFalse(cdslResp.getAnswer().contains("Regarding gap-downs and risk containment"),
                 "Must NOT return generic gap-down risk template for why down");
-        Assertions.assertTrue(cdslResp.getAnswer().contains("Direct Cause Analysis") || cdslResp.getAnswer().contains("Valuation") || cdslResp.getAnswer().contains("turnover"),
+        Assertions.assertTrue(cdslResp.getAnswer().contains("Valuation") || cdslResp.getAnswer().contains("turnover") || cdslResp.getAnswer().contains("consolidation"),
                 "Expected direct fundamental cause for CDSL drop: " + cdslResp.getAnswer());
     }
 
     @Test
     void testMeetingOutcomeQueriesProvideConcallAndBoardDecisions() {
-        // Query: abhi abhi recently ke metting mein kya kya hua hn
-        String meetingQ = "abhi abhi recently ke metting mein kya kya hua hn";
+        // Query: Recent metting mein kya discuss huaa
+        String meetingQ = "Recent metting mein kya discuss huaa";
         Assertions.assertTrue(geminiService.isFinancialQuery(meetingQ),
                 "Expected Hindi/Hinglish meeting query to PASS guardrail: " + meetingQ);
 
@@ -143,8 +163,12 @@ public class GeminiGuardrailTest {
 
         Assertions.assertFalse(resp.getAnswer().contains("Scope Notice"),
                 "Meeting query must NOT trigger Scope Notice");
-        Assertions.assertTrue(resp.getAnswer().contains("Recent Corporate Meeting") || resp.getAnswer().contains("Board") || resp.getAnswer().contains("Concall"),
+        Assertions.assertTrue(resp.getAnswer().contains("Board") || resp.getAnswer().contains("Concall") || resp.getAnswer().contains("Dividend"),
                 "Expected Board/Concall decisions in meeting response");
+        Assertions.assertFalse(resp.getAnswer().contains("Strict Stop Loss"),
+                "Must NOT dump irrelevant Stop Loss for a meeting query");
+        Assertions.assertFalse(resp.getAnswer().contains("disciplined stop loss"),
+                "Must NOT dump irrelevant disciplined stop loss for a meeting query");
         Assertions.assertTrue(resp.getAnswer().contains("### 1. Direct Analyst Verdict"));
         Assertions.assertTrue(resp.getAnswer().contains("### 2. Fundamental & Quantitative Analysis"));
         Assertions.assertTrue(resp.getAnswer().contains("### 3. Key Catalysts & Risk Watch"));
