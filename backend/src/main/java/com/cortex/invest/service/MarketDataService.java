@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -54,6 +55,7 @@ public class MarketDataService {
     /**
      * Fetch real-time market quote dynamically for any ticker (zero hardcoding)
      */
+    @Cacheable(value = "quote_cache", key = "#rawTicker != null ? #rawTicker.trim().toUpperCase() : 'RELIANCE'")
     public LiveQuote fetchLiveQuote(String rawTicker) {
         String cleanTicker = rawTicker != null ? rawTicker.trim().toUpperCase() : "RELIANCE";
         String resolvedSymbol = resolveSymbol(cleanTicker);

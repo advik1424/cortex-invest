@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-export default function FormattedAnalystAnswer({ text, className = '' }) {
+function FormattedAnalystAnswer({ text, className = '' }) {
   if (!text) return null;
 
   // Domain Guardrail Warning Interception
@@ -83,3 +83,5 @@ export default function FormattedAnalystAnswer({ text, className = '' }) {
     </div>
   );
 }
+
+export default memo(FormattedAnalystAnswer);

@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface PortfolioRepository extends JpaRepository<PortfolioHolding, Long> {
     Optional<PortfolioHolding> findByTicker(String ticker);
     List<PortfolioHolding> findByUserEmailIgnoreCase(String userEmail);
+    Optional<PortfolioHolding> findByUserEmailAndTicker(String userEmail, String ticker);
     Optional<PortfolioHolding> findByIdAndUserEmailIgnoreCase(Long id, String userEmail);
     void deleteByIdAndUserEmailIgnoreCase(Long id, String userEmail);
 }

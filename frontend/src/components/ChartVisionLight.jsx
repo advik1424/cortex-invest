@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { chartApi, screenerApi } from '../services/api';
 import FormattedAnalystAnswer from './FormattedAnalystAnswer';
 import {
@@ -8,7 +8,7 @@ import {
   ExternalLink, Award, Eye, X, Check, Clock, FileText, ChevronRight
 } from 'lucide-react';
 
-export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFinancials, onSelectTicker }) {
+function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFinancials, onSelectTicker }) {
   // Trading Basis: 'INTRADAY', 'SWING', 'SHORT_TERM', 'LONG_TERM'
   const [tradingCategory, setTradingCategory] = useState('SWING');
 
@@ -101,9 +101,21 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFina
   };
 
   const clearAllFiles = () => {
+    previews.forEach((p) => {
+      try { URL.revokeObjectURL(p); } catch (e) {}
+    });
     setFiles([]);
     setPreviews([]);
   };
+
+  // Revoke object URLs on unmount to release browser memory
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => {
+        try { URL.revokeObjectURL(p); } catch (e) {}
+      });
+    };
+  }, [previews]);
 
   const triggerDeepScan = async (selectedFilesOverride, categoryOverride, queryOverride) => {
     setLoading(true);
@@ -596,3 +608,5 @@ export default function ChartVisionLight({ ticker = 'RELIANCE', onNavigateToFina
     </div>
   );
 }
+
+export default memo(ChartVisionLight);

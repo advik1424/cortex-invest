@@ -16,7 +16,8 @@ import lombok.NoArgsConstructor;
     name = "portfolio_holdings",
     indexes = {
         @Index(name = "idx_holdings_user", columnList = "userEmail"),
-        @Index(name = "idx_holdings_ticker", columnList = "ticker")
+        @Index(name = "idx_holdings_ticker", columnList = "ticker"),
+        @Index(name = "idx_holdings_user_ticker", columnList = "userEmail, ticker")
     }
 )
 @Data

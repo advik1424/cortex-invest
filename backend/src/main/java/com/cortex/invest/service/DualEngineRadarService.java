@@ -4,6 +4,7 @@ import com.cortex.invest.dto.*;
 import com.cortex.invest.model.PortfolioHolding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -156,6 +157,7 @@ public class DualEngineRadarService {
      * Strictly Top 10 Curated Buys. Price Capped <= ₹2,500. Hard blocks loss-makers & debt > 1.8.
      * Enriched with 15-Year Historical Compounding Backtest & Balance Sheet Metrics.
      */
+    @Cacheable("value_buys")
     public List<LongTermValueStockDto> getTop10LongTermValueBuys() {
         List<RawCandidate> candidates = List.of(
                 new RawCandidate("HDFCBANK", "HDFC Bank Ltd", "Private Bank", 1742.0, 1880.0, 1610.0, 39.5, 18.2, 2.7, 16.4, 0.95, 18.5, 0.0, 52.4, 19.4, 87.5, 3.25, 920, 18.2, 24.5, 89.0, 14.2, 0.0, "+1.2% FII accumulation in last 2 quarters", List.of("CASA ratio > 38% industry lowest cost of funds", "Zero NPA spikes across 15-year credit cycles", "Unmatched corporate & retail credit distribution network")),
@@ -287,6 +289,7 @@ public class DualEngineRadarService {
      * Closing range >= 0.70, Volume ratio >= 1.25x - 1.35x, BE rule (+0.1R @ +1.0R gain), 10-day time stop.
      * Enriched with 15-Year Quantitative Backtest Metrics (65% - 85% Win-Rate Filter).
      */
+    @Cacheable("swing_signals")
     public List<SwingRadarStockDto> getSwingTradingSignals() {
         List<RawSwingSetup> setups = List.of(
                 // Theme 1: Defence & Aerospace (3 stocks)
