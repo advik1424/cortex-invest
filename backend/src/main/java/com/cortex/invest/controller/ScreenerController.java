@@ -90,15 +90,54 @@ public class ScreenerController {
         String qLower = qClean.toLowerCase();
         String qUpper = qClean.toUpperCase();
 
-        // Common company nickname / alias mapping to official NSE tickers
-        Map<String, String> aliasMap = Map.of(
-                "TATA", "TATAMOTORS",
-                "HDFC", "HDFCBANK",
-                "SBI", "SBIN",
-                "RIL", "RELIANCE",
-                "INFOSYS", "INFY"
-        );
-        String targetTicker = aliasMap.getOrDefault(qUpper, qUpper);
+        // Common company nickname / multi-word alias mapping to official NSE tickers
+        Map<String, String> aliasMap = new HashMap<>();
+        aliasMap.put("TATA", "TATAMOTORS");
+        aliasMap.put("TATA MOTORS", "TATAMOTORS");
+        aliasMap.put("TATA MOTOR", "TATAMOTORS");
+        aliasMap.put("TATA CONSULTANCY", "TCS");
+        aliasMap.put("TATA STEEL", "TATASTEEL");
+        aliasMap.put("HDFC", "HDFCBANK");
+        aliasMap.put("HDFC BANK", "HDFCBANK");
+        aliasMap.put("SBI", "SBIN");
+        aliasMap.put("STATE BANK", "SBIN");
+        aliasMap.put("STATE BANK OF INDIA", "SBIN");
+        aliasMap.put("ICICI", "ICICIBANK");
+        aliasMap.put("ICICI BANK", "ICICIBANK");
+        aliasMap.put("KOTAK", "KOTAKBANK");
+        aliasMap.put("KOTAK BANK", "KOTAKBANK");
+        aliasMap.put("AXIS", "AXISBANK");
+        aliasMap.put("AXIS BANK", "AXISBANK");
+        aliasMap.put("RIL", "RELIANCE");
+        aliasMap.put("RELIANCE", "RELIANCE");
+        aliasMap.put("RELIANCE INDUSTRIES", "RELIANCE");
+        aliasMap.put("INFOSYS", "INFY");
+        aliasMap.put("INFY", "INFY");
+        aliasMap.put("HUL", "HINDUNILVR");
+        aliasMap.put("HINDUSTAN UNILEVER", "HINDUNILVR");
+        aliasMap.put("L&T", "LT");
+        aliasMap.put("LARSEN", "LT");
+        aliasMap.put("LARSEN & TOUBRO", "LT");
+        aliasMap.put("LARSEN AND TOUBRO", "LT");
+        aliasMap.put("CDSL", "CDSL");
+        aliasMap.put("CENTRAL DEPOSITORY", "CDSL");
+        aliasMap.put("BEL", "BEL");
+        aliasMap.put("BHARAT ELECTRONICS", "BEL");
+        aliasMap.put("HAL", "HAL");
+        aliasMap.put("HINDUSTAN AERONAUTICS", "HAL");
+        aliasMap.put("MARUTI", "MARUTI");
+        aliasMap.put("MARUTI SUZUKI", "MARUTI");
+        aliasMap.put("SUN PHARMA", "SUNPHARMA");
+        aliasMap.put("SUN PHARMACEUTICAL", "SUNPHARMA");
+        aliasMap.put("NESTLE", "NESTLEIND");
+        aliasMap.put("DABUR", "DABUR");
+        aliasMap.put("ZOMATO", "ZOMATO");
+        aliasMap.put("PAYTM", "PAYTM");
+        aliasMap.put("SUZLON", "SUZLON");
+        aliasMap.put("ITC", "ITC");
+        aliasMap.put("TITAN", "TITAN");
+
+        String targetTicker = aliasMap.get(qUpper);
 
         List<Map<String, Object>> results = new ArrayList<>();
         Set<String> addedTickers = new HashSet<>();
@@ -106,35 +145,57 @@ public class ScreenerController {
         // 1. First priority: Exact ticker or alias match
         for (Map<String, String> c : catalog) {
             String ticker = c.get("ticker");
-            if (ticker.equalsIgnoreCase(targetTicker) || ticker.equalsIgnoreCase(qUpper)) {
+            if (ticker.equalsIgnoreCase(qUpper) || (targetTicker != null && ticker.equalsIgnoreCase(targetTicker))) {
                 results.add(buildSearchResult(c, 100));
                 addedTickers.add(ticker);
             }
         }
 
-        // 2. Second priority: Prefix match on ticker or company name
+        // 2. Second priority: Prefix match on company name or ticker
         for (Map<String, String> c : catalog) {
             String ticker = c.get("ticker");
             if (addedTickers.contains(ticker)) continue;
 
-            String name = c.get("name");
-            if (ticker.toLowerCase().startsWith(qLower)) {
-                results.add(buildSearchResult(c, 80));
+            String name = c.get("name").toLowerCase();
+            String tick = ticker.toLowerCase();
+            if (tick.startsWith(qLower)) {
+                results.add(buildSearchResult(c, 90));
                 addedTickers.add(ticker);
-            } else if (name.toLowerCase().startsWith(qLower)) {
+            } else if (name.startsWith(qLower)) {
+                results.add(buildSearchResult(c, 85));
+                addedTickers.add(ticker);
+            }
+        }
+
+        // 3. Third priority: Multi-word token match across company name & sector
+        String[] tokens = qLower.split("\\s+");
+        for (Map<String, String> c : catalog) {
+            String ticker = c.get("ticker");
+            if (addedTickers.contains(ticker)) continue;
+
+            String name = c.get("name").toLowerCase();
+            String sector = c.get("sector").toLowerCase();
+            String tick = ticker.toLowerCase();
+
+            boolean allTokensMatch = Arrays.stream(tokens).allMatch(tok ->
+                    tick.contains(tok) || name.contains(tok) || sector.contains(tok)
+            );
+
+            if (allTokensMatch) {
                 results.add(buildSearchResult(c, 70));
                 addedTickers.add(ticker);
             }
         }
 
-        // 3. Third priority: Substring match anywhere in ticker, name, or sector
+        // 4. Fourth priority: Loose substring match
         for (Map<String, String> c : catalog) {
             String ticker = c.get("ticker");
             if (addedTickers.contains(ticker)) continue;
 
-            String name = c.get("name");
-            String sector = c.get("sector");
-            if (ticker.toLowerCase().contains(qLower) || name.toLowerCase().contains(qLower) || sector.toLowerCase().contains(qLower)) {
+            String name = c.get("name").toLowerCase();
+            String sector = c.get("sector").toLowerCase();
+            String tick = ticker.toLowerCase();
+            if (tick.contains(qLower) || name.contains(qLower) || sector.contains(qLower)) {
                 results.add(buildSearchResult(c, 50));
                 addedTickers.add(ticker);
             }
@@ -143,7 +204,7 @@ public class ScreenerController {
         // Sort by score descending
         results.sort((a, b) -> Integer.compare((Integer) b.get("score"), (Integer) a.get("score")));
 
-        // 4. If query length >= 2 and not found in catalog, provide dynamic uncataloged option at the end
+        // 5. If query length >= 2 and not found in catalog, provide dynamic uncataloged option at the end
         if (!addedTickers.contains(qUpper) && qUpper.length() >= 2 && results.isEmpty()) {
             Double dynamicPrice = 750.0;
             results.add(Map.of(

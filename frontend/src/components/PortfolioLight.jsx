@@ -1072,23 +1072,32 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
             </div>
             
             <form onSubmit={handleAddHolding} className="space-y-4 mt-4">
-              {/* Search Field */}
+              {/* Unified Company & Stock Search Field (Merged into ONE) */}
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Search Company or Ticker (NSE/BSE)
+                  Company / Stock (Search by Name or Symbol)
                 </label>
                 <div className="relative" ref={tickerDropdownRef}>
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
-                      required={!newHolding.ticker}
-                      placeholder="Search e.g. Tata, Reliance, INFY, HDFC Bank, CDSL..."
+                      required={!newHolding.ticker && !newHolding.companyName}
+                      placeholder="Type company name (e.g. Tata Motors, State Bank, HDFC, Reliance, Infosys)..."
                       value={modalSearchInput}
                       onFocus={() => {
                         if (tickerSuggestions.length > 0) setShowTickerDropdown(true);
                       }}
-                      onChange={(e) => setModalSearchInput(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setModalSearchInput(val);
+                        // Also sync companyName dynamically
+                        setNewHolding((prev) => ({
+                          ...prev,
+                          companyName: val,
+                          ticker: prev.ticker || val.toUpperCase(),
+                        }));
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'ArrowDown' && tickerSuggestions.length > 0) {
                           e.preventDefault();
@@ -1128,6 +1137,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                           }));
                         }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                        title="Clear selection"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -1181,34 +1191,47 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
 
                   {/* Selected Stock Live Badge */}
                   {newHolding.ticker && (
-                    <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs animate-in fade-in duration-150">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
                         <div>
-                          <span className="font-bold text-slate-900">{newHolding.companyName}</span>
-                          <span className="text-slate-500 font-mono ml-1.5 font-bold">({newHolding.ticker})</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900">{newHolding.companyName}</span>
+                            <span className="text-[10px] font-mono font-bold bg-white text-emerald-800 px-1.5 py-0.2 rounded border border-emerald-200">
+                              {newHolding.ticker}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{newHolding.sector}</div>
                         </div>
                       </div>
-                      <span className="font-mono font-bold text-emerald-800 text-xs bg-white px-2 py-0.5 rounded border border-emerald-200">
-                        Live CMP: ₹{newHolding.currentMarketPrice || '---'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-emerald-800 text-xs bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                          Live CMP: ₹{newHolding.currentMarketPrice || '---'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalSearchInput('');
+                            setTickerSuggestions([]);
+                            setShowTickerDropdown(false);
+                            setNewHolding((prev) => ({
+                              ...prev,
+                              ticker: '',
+                              companyName: '',
+                              currentMarketPrice: '',
+                            }));
+                          }}
+                          className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Company Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Infosys Ltd"
-                  value={newHolding.companyName}
-                  onChange={(e) => setNewHolding({ ...newHolding, companyName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs focus:outline-none shadow-2xs"
-                />
-              </div>
-
+              {/* Shares & Buy Price in 2 Columns */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Shares (Qty)</label>
@@ -1236,8 +1259,12 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                 </div>
               </div>
 
+              {/* Current Market Price (Auto-fetched) */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Current Market Price (CMP ₹)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Current Market Price (CMP ₹)</label>
+                  <span className="text-[10px] text-emerald-600 font-semibold">Live auto-synced</span>
+                </div>
                 <input
                   type="number"
                   step="0.05"
@@ -1245,8 +1272,29 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                   placeholder="Auto-fetched or enter CMP"
                   value={newHolding.currentMarketPrice}
                   onChange={(e) => setNewHolding({ ...newHolding, currentMarketPrice: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs font-mono focus:outline-none shadow-2xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs font-mono focus:outline-none shadow-2xs bg-slate-50/50"
                 />
+              </div>
+
+              {/* Classification Tag Selector */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Holding Classification</label>
+                <div className="grid grid-cols-4 gap-1.5 text-center">
+                  {['Compounder', 'Value Moat', 'Growth Momentum', 'Turnaround'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setNewHolding({ ...newHolding, category: cat })}
+                      className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                        newHolding.category === cat
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
