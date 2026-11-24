@@ -569,6 +569,7 @@ public class GeminiService {
                 + (roce > 0 ? " | ROCE: " + String.format("%.1f%%", roce) : "")
                 + "\n\n"
                 + "VERIFIED CORPORATE INTELLIGENCE & NEWS CONTEXT:\n"
+                + "- Enterprise Health / Solvency Reality: " + (intel.getWhyFailingClarification() != null ? intel.getWhyFailingClarification() : "Pristine capital return profile with zero debt.") + "\n"
                 + "- Downside Drivers / Why Falling: " + intel.getWhyFallingDirectVerdict() + "\n"
                 + "- Key Drivers: " + String.join("; ", intel.getWhyFallingKeyDrivers()) + "\n"
                 + "- Recent Meeting & Concall Decisions: " + intel.getMeetingDirectVerdict() + "\n"
@@ -581,21 +582,30 @@ public class GeminiService {
                 + "CRITICAL DOMAIN GUARDRAIL:\n"
                 + "If the user's question is completely unrelated to financial markets, stock investing, corporate fundamentals, trading, or economics (e.g. general chit-chat, cooking recipes, cinema, sports, coding, or irrelevant trivia), DO NOT answer the question. Instead, return EXACTLY:\n"
                 + "\"" + NON_FINANCIAL_WARNING + "\"\n\n"
-                + "FORMATTING MANDATE FOR RELEVANT FINANCIAL QUESTIONS:\n"
-                + "Structure your response into clean, high-impact Markdown sections:\n"
+                + "CRITICAL INTENT-AWARE MANDATE:\n"
+                + "1. Meeting / AGM / Concall Questions (e.g. 'Recent metting mein kya discuss huaa', 'kya hua meeting me'):\n"
+                + "   - In Section 1, summarize the core outcomes of the recent board meeting and concall.\n"
+                + "   - In Section 2, detail the approved board resolutions (dividends, capex) and key operational takeaways from the concall.\n"
+                + "   - In Section 4, provide long-term investment guidance. DO NOT invent day-trading stop-loss or profit-booking targets.\n"
+                + "2. Why Falling / Failing Questions (e.g. 'why tcs is fail', 'why cdsl is down', 'kyu gir raha hai'):\n"
+                + "   - In Section 1, directly diagnose the stock correction and clarify whether the enterprise is actually failing (confirm it is NOT failing if fortress fundamentals like zero debt, high ROCE exist).\n"
+                + "   - In Section 2, detail the specific macro, client budget, and margin headwinds driving the de-rating.\n"
+                + "   - In Section 4, explain strategic accumulation logic for long-term compounders and patience for traders. DO NOT dump arbitrary stop-loss numbers unless explicitly asked.\n"
+                + "3. Trading Strategy / Levels Questions (e.g. 'targets', 'stop loss', 'where to buy'):\n"
+                + "   - Provide specific execution corridor, Stop Loss, Target 1, Target 2, and position sizing.\n\n"
+                + "FORMATTING MANDATE:\n"
+                + "Structure your response into clean, high-impact Markdown sections with these EXACT headings:\n"
                 + "### 1. Direct Analyst Verdict\n"
-                + "(1-2 concise, decisive sentences addressing the user's specific question directly with clear conviction, exact price/trigger numbers, and trader discipline)\n\n"
                 + "### 2. Fundamental & Quantitative Analysis\n"
-                + "(Provide specific data points: ROCE/ROE efficiency, free cash flow conversion, balance sheet debt/leverage, pricing power, or operating margin trajectory)\n\n"
                 + "### 3. Key Catalysts & Risk Watch\n"
-                + "(Upcoming quarterly triggers, management concall guidance, raw material cost pressures, or working capital vulnerabilities)\n\n"
-                + "### 4. Strategic Investment Takeaway\n"
-                + "(Actionable execution plan: Accumulation corridor on dips, profit-booking targets, or risk invalidation price level)\n\n"
-                + "Keep your tone authentic, institutional, data-driven, and directly actionable.";
+                + "### 4. Strategic Investment Takeaway\n\n"
+                + "Always use '₹' for Indian Rupee amounts. Keep your tone authentic, institutional, data-driven, and directly actionable.";
 
         String answer = callGeminiWithFallback(systemPrompt, question);
         if (answer == null || answer.trim().isEmpty()) {
             answer = generateContextAwareAnalystAnswer(ticker, companyName, question, cmp, sector, pe, roe, roce);
+        } else {
+            answer = sanitizeAnalystAnswer(answer);
         }
 
         return AskAnalystResponse.builder()
@@ -604,6 +614,18 @@ public class GeminiService {
                 .answer(answer)
                 .timestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm:ss")))
                 .build();
+    }
+
+    private String sanitizeAnalystAnswer(String answer) {
+        if (answer == null) return "";
+        String s = answer.trim();
+        // Replace Windows encoding artifacts
+        s = s.replace("â‚¹", "₹");
+        s = s.replaceAll("(?i)\\bRs\\.?\\s*", "₹");
+        s = s.replaceAll("(?i)\\bINR\\s*", "₹");
+        // Ensure proper Markdown heading format (e.g. "1. Direct Analyst Verdict" -> "### 1. Direct Analyst Verdict")
+        s = s.replaceAll("(?m)^(\\d\\.\\s*(?:Direct Analyst Verdict|Fundamental & Quantitative Analysis|Key Catalysts & Risk Watch|Strategic Investment Takeaway))", "### $1");
+        return s;
     }
 
     private String generateContextAwareAnalystAnswer(String ticker, String companyName, String rawQuestion, double cmp, String sector, double pe, double roe, double roce) {
@@ -634,13 +656,20 @@ public class GeminiService {
             StringBuilder resolutions = new StringBuilder();
             if (intel.getBoardResolutions() != null) {
                 for (String res : intel.getBoardResolutions()) {
-                    resolutions.append("* **Board Resolution**: ").append(res).append("\n");
+                    resolutions.append("* ").append(res).append("\n");
                 }
             }
             StringBuilder concalls = new StringBuilder();
             if (intel.getConcallHighlights() != null) {
                 for (String c : intel.getConcallHighlights()) {
-                    concalls.append("* **Concall Discussion**: ").append(c).append("\n");
+                    int colonIdx = c.indexOf(':');
+                    if (colonIdx > 0) {
+                        String title = c.substring(0, colonIdx).trim();
+                        String desc = c.substring(colonIdx + 1).trim();
+                        concalls.append("* **").append(title).append("**: ").append(desc).append("\n");
+                    } else {
+                        concalls.append("* ").append(c).append("\n");
+                    }
                 }
             }
             return String.format("""
@@ -649,9 +678,9 @@ public class GeminiService {
                 %s
 
                 ### 2. Fundamental & Quantitative Analysis
-                * **Key Board Resolutions & Capital Allocation Decisions:**
+                **Key Board Resolutions & Capital Allocation:**
                 %s
-                * **Concall Discussions & Operational Highlights:**
+                **Concall Discussions & Operational Takeaways:**
                 %s
 
                 ### 3. Key Catalysts & Risk Watch
@@ -676,7 +705,14 @@ public class GeminiService {
             StringBuilder drivers = new StringBuilder();
             if (intel.getWhyFallingKeyDrivers() != null) {
                 for (String driver : intel.getWhyFallingKeyDrivers()) {
-                    drivers.append("* **Key Driver**: ").append(driver).append("\n");
+                    int colonIdx = driver.indexOf(':');
+                    if (colonIdx > 0) {
+                        String title = driver.substring(0, colonIdx).trim();
+                        String desc = driver.substring(colonIdx + 1).trim();
+                        drivers.append("* **").append(title).append("**: ").append(desc).append("\n");
+                    } else {
+                        drivers.append("* ").append(driver).append("\n");
+                    }
                 }
             }
             String clarification = (intel.getWhyFailingClarification() != null && !intel.getWhyFailingClarification().isBlank())
@@ -691,7 +727,7 @@ public class GeminiService {
                 %s
 
                 ### 2. Fundamental & Quantitative Analysis
-                * **Primary Headwinds Driving the Stock Underperformance:**
+                **Primary Macro & Sector Headwinds:**
                 %s
                 * **Fortress Balance Sheet Cushion**: Zero balance sheet distress with superior capital efficiency in the **%s** sector (ROE: **%.1f%%**, ROCE: **%.1f%%**, P/E: **%.1fx**) provides deep downside protection against protracted declines.
 
