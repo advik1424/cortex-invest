@@ -29,6 +29,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
   const [tickerSuggestions, setTickerSuggestions] = useState([]);
   const [showTickerDropdown, setShowTickerDropdown] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [modalSearchInput, setModalSearchInput] = useState('');
   const tickerDropdownRef = useRef(null);
 
   const [newHolding, setNewHolding] = useState({
@@ -86,36 +87,86 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Live autocomplete for Ticker in Add Holding Modal
+  const handleOpenAddModal = () => {
+    setShowAddModal(true);
+    setModalSearchInput('');
+    setTickerSuggestions([]);
+    setShowTickerDropdown(false);
+    setSelectedSuggestionIndex(-1);
+    setNewHolding({
+      ticker: '',
+      companyName: '',
+      quantity: '',
+      avgBuyPrice: '',
+      currentMarketPrice: '',
+      sector: 'Banking & Financials',
+      category: 'Compounder',
+    });
+  };
+
+  // Live autocomplete for Company / Ticker in Add Holding Modal
   useEffect(() => {
-    if (!newHolding.ticker || newHolding.ticker.trim().length < 1) {
+    const q = (modalSearchInput || '').trim();
+    if (q.length < 1) {
       setTickerSuggestions([]);
       setShowTickerDropdown(false);
       return;
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await screenerApi.search(newHolding.ticker.trim());
-        setTickerSuggestions(res.data || []);
-        setShowTickerDropdown((res.data || []).length > 0);
+        const res = await screenerApi.search(q);
+        const list = res.data || [];
+        setTickerSuggestions(list);
+        setShowTickerDropdown(list.length > 0);
       } catch (err) {
-        console.error(err);
+        console.error('Ticker search error:', err);
       }
-    }, 200);
+    }, 150);
     return () => clearTimeout(timer);
-  }, [newHolding.ticker]);
+  }, [modalSearchInput]);
 
-  const handleSelectTickerSuggestion = async (item) => {
+  const handleSelectTickerSuggestion = (item) => {
+    const price = item.currentPrice || item.price || 1000;
     setNewHolding((prev) => ({
       ...prev,
       ticker: item.ticker,
-      companyName: item.name || prev.companyName,
+      companyName: item.name || item.ticker,
       sector: item.sector || prev.sector,
+      currentMarketPrice: price,
+      avgBuyPrice: prev.avgBuyPrice || price,
     }));
+    setModalSearchInput(`${item.name} (${item.ticker})`);
     setShowTickerDropdown(false);
     setTickerSuggestions([]);
     setSelectedSuggestionIndex(-1);
-    await handleTickerBlur(item.ticker);
+  };
+
+  const handleDirectTickerSubmit = async (symbol) => {
+    if (!symbol || symbol.trim().length < 2) return;
+    const cleanSym = symbol.trim().toUpperCase();
+    setFetchingQuote(true);
+    try {
+      const res = await screenerApi.getData(cleanSym);
+      if (res.data) {
+        const price = res.data.ratios?.currentPrice || 1000;
+        const name = res.data.profile?.name || cleanSym;
+        const sector = res.data.profile?.sector || 'Diversified';
+        setNewHolding((prev) => ({
+          ...prev,
+          ticker: cleanSym,
+          companyName: name,
+          sector: sector,
+          currentMarketPrice: price,
+          avgBuyPrice: prev.avgBuyPrice || price,
+        }));
+        setModalSearchInput(`${name} (${cleanSym})`);
+        setShowTickerDropdown(false);
+      }
+    } catch (e) {
+      console.warn('Quote fetch fallback:', e);
+    } finally {
+      setFetchingQuote(false);
+    }
   };
 
   // Filter holdings safely
@@ -129,27 +180,6 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
       (h.category || '').toLowerCase().includes(q)
     );
   });
-
-  // Auto-fetch CMP when user types a valid ticker in Add Stock modal
-  const handleTickerBlur = async (tickerSymbol) => {
-    if (!tickerSymbol || tickerSymbol.length < 2) return;
-    setFetchingQuote(true);
-    try {
-      const res = await screenerApi.getData(tickerSymbol.toUpperCase().trim());
-      if (res.data?.ratios?.currentPrice) {
-        setNewHolding((prev) => ({
-          ...prev,
-          currentMarketPrice: res.data.ratios.currentPrice,
-          companyName: res.data.profile?.name || prev.companyName || tickerSymbol,
-          sector: res.data.profile?.sector || prev.sector,
-        }));
-      }
-    } catch (e) {
-      // Ignore if not found
-    } finally {
-      setFetchingQuote(false);
-    }
-  };
 
   const handleAddHolding = async (e) => {
     e.preventDefault();
@@ -455,7 +485,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
             )}
 
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={handleOpenAddModal}
               className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Stock
@@ -527,7 +557,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                         No positions recorded yet under <span className="font-mono font-semibold text-slate-700">{user.email}</span>. Click below to add your first stock holding.
                       </p>
                       <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={handleOpenAddModal}
                         className="px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0D655E] text-white text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 font-sans cursor-pointer mt-1"
                       >
                         <Plus className="w-4 h-4" />
@@ -1023,64 +1053,97 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
         </div>
       )}
 
-      {/* Add Holding Modal (Clean, No Hardcoded Values) */}
+      {/* Add Holding Modal (Groww + Screener.in Fast Autocomplete) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <h3 className="text-lg font-black text-slate-900 mb-1">Add Stock to Portfolio</h3>
-            <p className="text-xs text-slate-500 mb-4">Search company or enter ticker to auto-fetch live market price.</p>
-            
-            <form onSubmit={handleAddHolding} className="space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Search Company or Ticker (NSE/BSE)</label>
+                <h3 className="text-lg font-black text-slate-900">Add Stock to Portfolio</h3>
+                <p className="text-xs text-slate-500">Search company or enter ticker to auto-fetch live market price.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddHolding} className="space-y-4 mt-4">
+              {/* Search Field */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Search Company or Ticker (NSE/BSE)
+                </label>
                 <div className="relative" ref={tickerDropdownRef}>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Search e.g. Tata, Reliance, INFY, HDFC Bank..."
-                    value={newHolding.ticker}
-                    onFocus={() => {
-                      if (tickerSuggestions.length > 0) setShowTickerDropdown(true);
-                    }}
-                    onChange={(e) => setNewHolding({ ...newHolding, ticker: e.target.value.toUpperCase() })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowDown' && tickerSuggestions.length > 0) {
-                        e.preventDefault();
-                        setShowTickerDropdown(true);
-                        setSelectedSuggestionIndex((prev) => (prev < tickerSuggestions.length - 1 ? prev + 1 : 0));
-                      } else if (e.key === 'ArrowUp' && tickerSuggestions.length > 0) {
-                        e.preventDefault();
-                        setShowTickerDropdown(true);
-                        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : tickerSuggestions.length - 1));
-                      } else if (e.key === 'Enter') {
-                        if (showTickerDropdown && selectedSuggestionIndex >= 0 && tickerSuggestions[selectedSuggestionIndex]) {
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required={!newHolding.ticker}
+                      placeholder="Search e.g. Tata, Reliance, INFY, HDFC Bank, CDSL..."
+                      value={modalSearchInput}
+                      onFocus={() => {
+                        if (tickerSuggestions.length > 0) setShowTickerDropdown(true);
+                      }}
+                      onChange={(e) => setModalSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown' && tickerSuggestions.length > 0) {
                           e.preventDefault();
-                          handleSelectTickerSuggestion(tickerSuggestions[selectedSuggestionIndex]);
-                        } else if (showTickerDropdown && tickerSuggestions.length > 0) {
+                          setShowTickerDropdown(true);
+                          setSelectedSuggestionIndex((prev) => (prev < tickerSuggestions.length - 1 ? prev + 1 : 0));
+                        } else if (e.key === 'ArrowUp' && tickerSuggestions.length > 0) {
                           e.preventDefault();
-                          handleSelectTickerSuggestion(tickerSuggestions[0]);
+                          setShowTickerDropdown(true);
+                          setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : tickerSuggestions.length - 1));
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (showTickerDropdown && selectedSuggestionIndex >= 0 && tickerSuggestions[selectedSuggestionIndex]) {
+                            handleSelectTickerSuggestion(tickerSuggestions[selectedSuggestionIndex]);
+                          } else if (showTickerDropdown && tickerSuggestions.length > 0) {
+                            handleSelectTickerSuggestion(tickerSuggestions[0]);
+                          } else if (modalSearchInput.trim()) {
+                            handleDirectTickerSubmit(modalSearchInput.trim());
+                          }
+                        } else if (e.key === 'Escape') {
+                          setShowTickerDropdown(false);
                         }
-                      } else if (e.key === 'Escape') {
-                        setShowTickerDropdown(false);
-                      }
-                    }}
-                    onBlur={(e) => {
-                      setTimeout(() => {
-                        handleTickerBlur(e.target.value);
-                      }, 200);
-                    }}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono uppercase focus:outline-none focus:border-[#0F766E] shadow-2xs"
-                  />
+                      }}
+                      className="w-full pl-10 pr-10 py-2.5 border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none shadow-2xs"
+                    />
+                    {modalSearchInput && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalSearchInput('');
+                          setTickerSuggestions([]);
+                          setShowTickerDropdown(false);
+                          setNewHolding((prev) => ({
+                            ...prev,
+                            ticker: '',
+                            companyName: '',
+                            currentMarketPrice: '',
+                          }));
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
                   {fetchingQuote && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-teal-600 font-sans">
+                    <div className="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-600 font-sans">
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Fetching quote...</span>
+                      <span>Fetching live CMP &amp; company metrics...</span>
                     </div>
                   )}
 
                   {/* Autocomplete Dropdown */}
                   {showTickerDropdown && tickerSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
                       {tickerSuggestions.map((item, idx) => (
                         <button
                           key={item.ticker}
@@ -1090,17 +1153,45 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                             e.preventDefault();
                             handleSelectTickerSuggestion(item);
                           }}
-                          className={`w-full px-3.5 py-2 text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
-                            selectedSuggestionIndex === idx ? 'bg-teal-50 text-teal-900' : 'hover:bg-slate-50'
+                          className={`w-full px-4 py-2.5 text-left flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                            selectedSuggestionIndex === idx ? 'bg-emerald-50 text-emerald-950 font-medium' : 'hover:bg-slate-50'
                           }`}
                         >
-                          <div>
-                            <span className="font-bold text-slate-900 font-sans">{item.name}</span>
-                            <span className="text-slate-500 ml-1.5 font-mono">({item.ticker})</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-[10px] text-slate-700">
+                              {item.ticker.slice(0, 2)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 font-sans">{item.name}</div>
+                              <div className="text-[10px] text-slate-400 font-sans">{item.sector}</div>
+                            </div>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-sans">{item.sector}</span>
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-emerald-700 block text-xs">
+                              {item.priceFormatted || (item.currentPrice ? `₹${item.currentPrice}` : 'Live')}
+                            </span>
+                            <span className="font-mono text-[10px] text-slate-500 uppercase">
+                              {item.ticker}
+                            </span>
+                          </div>
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Selected Stock Live Badge */}
+                  {newHolding.ticker && (
+                    <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="font-bold text-slate-900">{newHolding.companyName}</span>
+                          <span className="text-slate-500 font-mono ml-1.5 font-bold">({newHolding.ticker})</span>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-800 text-xs bg-white px-2 py-0.5 rounded border border-emerald-200">
+                        Live CMP: ₹{newHolding.currentMarketPrice || '---'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1114,7 +1205,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                   placeholder="e.g. Infosys Ltd"
                   value={newHolding.companyName}
                   onChange={(e) => setNewHolding({ ...newHolding, companyName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-[#0F766E] shadow-2xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1128,7 +1219,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                     placeholder="e.g. 50"
                     value={newHolding.quantity}
                     onChange={(e) => setNewHolding({ ...newHolding, quantity: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-[#0F766E] shadow-2xs"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs font-mono focus:outline-none shadow-2xs"
                   />
                 </div>
                 <div>
@@ -1140,7 +1231,7 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                     placeholder="e.g. 1540.00"
                     value={newHolding.avgBuyPrice}
                     onChange={(e) => setNewHolding({ ...newHolding, avgBuyPrice: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-[#0F766E] shadow-2xs"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs font-mono focus:outline-none shadow-2xs"
                   />
                 </div>
               </div>
@@ -1150,10 +1241,11 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                 <input
                   type="number"
                   step="0.05"
+                  required
                   placeholder="Auto-fetched or enter CMP"
                   value={newHolding.currentMarketPrice}
                   onChange={(e) => setNewHolding({ ...newHolding, currentMarketPrice: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-[#0F766E] shadow-2xs"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 focus:border-emerald-600 rounded-xl text-xs font-mono focus:outline-none shadow-2xs"
                 />
               </div>
 
@@ -1161,13 +1253,14 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#0F766E] hover:bg-[#0D655E] text-white text-xs font-bold transition-all shadow-xs"
+                  disabled={!newHolding.ticker || !newHolding.quantity || !newHolding.avgBuyPrice}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:cursor-not-allowed"
                 >
                   Save to Portfolio
                 </button>

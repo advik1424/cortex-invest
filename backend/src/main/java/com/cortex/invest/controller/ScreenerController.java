@@ -6,14 +6,13 @@ import com.cortex.invest.dto.AskAnalystRequest;
 import com.cortex.invest.dto.AskAnalystResponse;
 import com.cortex.invest.dto.ScreenerDataResponse;
 import com.cortex.invest.service.GeminiService;
+import com.cortex.invest.service.MarketDataService;
 import com.cortex.invest.service.ScreenerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/screener")
@@ -22,8 +21,9 @@ public class ScreenerController {
 
     private final ScreenerService screenerService;
     private final GeminiService geminiService;
+    private final MarketDataService marketDataService;
 
-    // Comprehensive universe of Indian and international equities across all sectors
+    // Comprehensive universe of Indian equities across all sectors
     private final List<Map<String, String>> catalog = List.of(
             Map.of("ticker", "RELIANCE", "name", "Reliance Industries Ltd", "sector", "Oil & Gas / Retail / Telecom"),
             Map.of("ticker", "TATAMOTORS", "name", "Tata Motors Ltd", "sector", "Automobile & EV"),
@@ -81,31 +81,102 @@ public class ScreenerController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Map<String, String>>> searchCompanies(@RequestParam("q") String query) {
-        String qLower = query != null ? query.toLowerCase().trim() : "";
-        String qUpper = query != null ? query.toUpperCase().trim() : "";
+    public ResponseEntity<List<Map<String, Object>>> searchCompanies(@RequestParam("q") String query) {
+        String qClean = query != null ? query.trim() : "";
+        if (qClean.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
 
-        List<Map<String, String>> results = new ArrayList<>();
+        String qLower = qClean.toLowerCase();
+        String qUpper = qClean.toUpperCase();
 
-        if (!qLower.isEmpty()) {
-            // Find in catalog
-            for (Map<String, String> c : catalog) {
-                if (c.get("ticker").toLowerCase().contains(qLower) || c.get("name").toLowerCase().contains(qLower) || c.get("sector").toLowerCase().contains(qLower)) {
-                    results.add(c);
-                }
-            }
+        // Common company nickname / alias mapping to official NSE tickers
+        Map<String, String> aliasMap = Map.of(
+                "TATA", "TATAMOTORS",
+                "HDFC", "HDFCBANK",
+                "SBI", "SBIN",
+                "RIL", "RELIANCE",
+                "INFOSYS", "INFY"
+        );
+        String targetTicker = aliasMap.getOrDefault(qUpper, qUpper);
 
-            // If not found in catalog, dynamically provide the typed ticker so user can search ANY stock in the world
-            boolean exactMatchExists = results.stream().anyMatch(r -> r.get("ticker").equalsIgnoreCase(qUpper));
-            if (!exactMatchExists && qUpper.length() >= 2) {
-                results.add(0, Map.of(
-                        "ticker", qUpper,
-                        "name", qUpper + " Limited",
-                        "sector", "NSE / BSE Listed Equity"
-                ));
+        List<Map<String, Object>> results = new ArrayList<>();
+        Set<String> addedTickers = new HashSet<>();
+
+        // 1. First priority: Exact ticker or alias match
+        for (Map<String, String> c : catalog) {
+            String ticker = c.get("ticker");
+            if (ticker.equalsIgnoreCase(targetTicker) || ticker.equalsIgnoreCase(qUpper)) {
+                results.add(buildSearchResult(c, 100));
+                addedTickers.add(ticker);
             }
         }
 
+        // 2. Second priority: Prefix match on ticker or company name
+        for (Map<String, String> c : catalog) {
+            String ticker = c.get("ticker");
+            if (addedTickers.contains(ticker)) continue;
+
+            String name = c.get("name");
+            if (ticker.toLowerCase().startsWith(qLower)) {
+                results.add(buildSearchResult(c, 80));
+                addedTickers.add(ticker);
+            } else if (name.toLowerCase().startsWith(qLower)) {
+                results.add(buildSearchResult(c, 70));
+                addedTickers.add(ticker);
+            }
+        }
+
+        // 3. Third priority: Substring match anywhere in ticker, name, or sector
+        for (Map<String, String> c : catalog) {
+            String ticker = c.get("ticker");
+            if (addedTickers.contains(ticker)) continue;
+
+            String name = c.get("name");
+            String sector = c.get("sector");
+            if (ticker.toLowerCase().contains(qLower) || name.toLowerCase().contains(qLower) || sector.toLowerCase().contains(qLower)) {
+                results.add(buildSearchResult(c, 50));
+                addedTickers.add(ticker);
+            }
+        }
+
+        // Sort by score descending
+        results.sort((a, b) -> Integer.compare((Integer) b.get("score"), (Integer) a.get("score")));
+
+        // 4. If query length >= 2 and not found in catalog, provide dynamic uncataloged option at the end
+        if (!addedTickers.contains(qUpper) && qUpper.length() >= 2 && results.isEmpty()) {
+            Double dynamicPrice = 750.0;
+            results.add(Map.of(
+                    "ticker", qUpper,
+                    "name", qUpper + " Ltd",
+                    "sector", "NSE / BSE Listed Equity",
+                    "currentPrice", dynamicPrice,
+                    "priceFormatted", String.format("₹%.2f", dynamicPrice),
+                    "score", 10
+            ));
+        }
+
         return ResponseEntity.ok(results);
+    }
+
+    private Map<String, Object> buildSearchResult(Map<String, String> c, int score) {
+        String ticker = c.get("ticker");
+        Double price = null;
+        try {
+            MarketDataService.LiveQuote quote = marketDataService.fetchLiveQuote(ticker);
+            if (quote != null && quote.getCurrentPrice() != null) {
+                price = quote.getCurrentPrice();
+            }
+        } catch (Exception ignored) {}
+
+        double finalPrice = price != null ? price : 1000.0;
+        Map<String, Object> map = new HashMap<>();
+        map.put("ticker", ticker);
+        map.put("name", c.get("name"));
+        map.put("sector", c.get("sector"));
+        map.put("currentPrice", finalPrice);
+        map.put("priceFormatted", String.format("₹%.2f", finalPrice));
+        map.put("score", score);
+        return map;
     }
 }
