@@ -91,4 +91,80 @@ public class GeminiGuardrailTest {
                     "Expected Section 4 for: " + q);
         }
     }
+
+    @Test
+    void testWhyFallingQueriesProvideDirectCauses() {
+        // Query 1: why tcs share is fall
+        String tcsQ = "why tcs share is fall";
+        Assertions.assertTrue(geminiService.isFinancialQuery(tcsQ), "Expected 'why tcs share is fall' to pass guardrail");
+        AskAnalystResponse tcsResp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("TCS")
+                .companyName("Tata Consultancy Services")
+                .currentPrice(2460.0)
+                .question(tcsQ)
+                .build());
+
+        Assertions.assertFalse(tcsResp.getAnswer().contains("Scope Notice"), "Should not trigger Scope Notice");
+        Assertions.assertFalse(tcsResp.getAnswer().contains("Regarding your inquiry on market corrections and tranche deployment"),
+                "Must NOT return generic tranche deployment template for why falling");
+        Assertions.assertTrue(tcsResp.getAnswer().contains("Direct Cause Analysis") || tcsResp.getAnswer().contains("BFSI") || tcsResp.getAnswer().contains("discretionary"),
+                "Expected direct fundamental cause for TCS fall: " + tcsResp.getAnswer());
+
+        // Query 2: why cdsl is down
+        String cdslQ = "why cdsl is down";
+        Assertions.assertTrue(geminiService.isFinancialQuery(cdslQ), "Expected 'why cdsl is down' to pass guardrail");
+        AskAnalystResponse cdslResp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("CDSL")
+                .companyName("Central Depository Services Ltd")
+                .currentPrice(1395.0)
+                .question(cdslQ)
+                .build());
+
+        Assertions.assertFalse(cdslResp.getAnswer().contains("Scope Notice"), "Should not trigger Scope Notice");
+        Assertions.assertFalse(cdslResp.getAnswer().contains("Regarding gap-downs and risk containment"),
+                "Must NOT return generic gap-down risk template for why down");
+        Assertions.assertTrue(cdslResp.getAnswer().contains("Direct Cause Analysis") || cdslResp.getAnswer().contains("Valuation") || cdslResp.getAnswer().contains("turnover"),
+                "Expected direct fundamental cause for CDSL drop: " + cdslResp.getAnswer());
+    }
+
+    @Test
+    void testMeetingOutcomeQueriesProvideConcallAndBoardDecisions() {
+        // Query: abhi abhi recently ke metting mein kya kya hua hn
+        String meetingQ = "abhi abhi recently ke metting mein kya kya hua hn";
+        Assertions.assertTrue(geminiService.isFinancialQuery(meetingQ),
+                "Expected Hindi/Hinglish meeting query to PASS guardrail: " + meetingQ);
+
+        AskAnalystResponse resp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("TCS")
+                .companyName("Tata Consultancy Services")
+                .currentPrice(2460.0)
+                .question(meetingQ)
+                .build());
+
+        Assertions.assertFalse(resp.getAnswer().contains("Scope Notice"),
+                "Meeting query must NOT trigger Scope Notice");
+        Assertions.assertTrue(resp.getAnswer().contains("Recent Corporate Meeting") || resp.getAnswer().contains("Board") || resp.getAnswer().contains("Concall"),
+                "Expected Board/Concall decisions in meeting response");
+        Assertions.assertTrue(resp.getAnswer().contains("### 1. Direct Analyst Verdict"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 2. Fundamental & Quantitative Analysis"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 3. Key Catalysts & Risk Watch"));
+        Assertions.assertTrue(resp.getAnswer().contains("### 4. Strategic Investment Takeaway"));
+    }
+
+    @Test
+    void testNewsCatalystQueriesProvideHeadlinesAndWeightage() {
+        String newsQ = "what is the latest news and catalyst weightage";
+        Assertions.assertTrue(geminiService.isFinancialQuery(newsQ));
+
+        AskAnalystResponse resp = geminiService.answerAnalystQuestion(AskAnalystRequest.builder()
+                .ticker("CDSL")
+                .companyName("Central Depository Services Ltd")
+                .currentPrice(1395.0)
+                .question(newsQ)
+                .build());
+
+        Assertions.assertFalse(resp.getAnswer().contains("Scope Notice"));
+        Assertions.assertTrue(resp.getAnswer().contains("News Sentiment") || resp.getAnswer().contains("Catalyst"));
+        Assertions.assertTrue(resp.getAnswer().contains("40%-50% weightage") || resp.getAnswer().contains("weight"));
+    }
 }

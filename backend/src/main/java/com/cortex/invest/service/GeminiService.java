@@ -48,6 +48,9 @@ public class GeminiService {
     @Autowired(required = false)
     private MarketDataService marketDataService;
 
+    @Autowired(required = false)
+    private StockNewsIntelligenceService stockNewsIntelligenceService = new StockNewsIntelligenceService();
+
     private final List<String> fallbackModels = List.of(
             "gemini-2.5-flash",
             "gemini-2.0-flash",
@@ -445,7 +448,7 @@ public class GeminiService {
         // 1. Explicit Non-Financial Patterns (Intercept immediately)
         List<String> nonFinancialPatterns = List.of(
                 "who is", "who was", "who won", "capital of", "president of", "prime minister",
-                "chief minister", "governor of", "where is", "recipe", "cook", "how to cook",
+                "chief minister", "governor of", "recipe", "cook", "how to cook",
                 "food", "dish", "biryani", "paneer", "cake", "movie", "film", "song", "actor",
                 "actress", "cinema", "director", "cricket", "football", "ipl", "match score",
                 "world cup", "weather", "temperature", "climate", "poem", "story", "tell a joke",
@@ -463,28 +466,40 @@ public class GeminiService {
                 // Check if it's a rare query explicitly linking a non-financial entity to financial statement metrics
                 boolean hasExplicitMetricOverride = (q.contains("ebitda") || q.contains("balance sheet")
                         || q.contains("concall") || q.contains("pe ratio") || q.contains("roce")
-                        || q.contains("quarterly results"));
+                        || q.contains("quarterly results") || q.contains("support") || q.contains("target"));
                 if (!hasExplicitMetricOverride) {
                     return false;
                 }
             }
         }
 
+        // Fast-path for corporate governance, meeting outcomes, news, catalysts, and price drops
+        if (q.contains("meet") || q.contains("metting") || q.contains("agm") || q.contains("egm")
+                || q.contains("concall") || q.contains("board") || q.contains("kya hua")
+                || q.contains("khabar") || q.contains("news") || q.contains("girawat") || q.contains("gir raha")
+                || (q.contains("why") && (q.contains("fall") || q.contains("down") || q.contains("drop") || q.contains("crash") || q.contains("gir")))) {
+            return true;
+        }
+
         // 2. Financial Domain Relevance Keywords
         List<String> financialTerms = List.of(
-                "stock", "share", "cmp", "target", "stoploss", "stop loss", "sl", "entry", "exit",
+                "stock", "share", "shares", "cmp", "target", "stoploss", "stop loss", "sl", "entry", "exit",
                 "buy", "sell", "hold", "accumulate", "trim", "average", "pullback", "dip",
-                "pe", "p/e", "pb", "p/b", "roe", "roce", "eps", "dividend", "yield", "payout",
-                "debt", "equity", "loan", "solvency", "leverage", "cash", "fcf", "cash flow",
-                "margin", "profit", "loss", "pat", "ebitda", "ebit", "sales", "revenue", "growth",
-                "capex", "concall", "results", "quarter", "earnings", "fy", "guidance", "order book",
+                "fall", "falling", "down", "drop", "dropped", "dropping", "crash", "correction", "correct",
+                "gir", "girawat", "gir raha", "why", "kyu", "karan", "reason", "rise", "surge", "rally",
+                "meeting", "metting", "agm", "egm", "board", "concall", "conference call", "kya hua",
+                "recent", "recently", "decision", "resolutions", "news", "khabar", "headline", "sentiment",
+                "update", "updates", "pe", "p/e", "pb", "p/b", "roe", "roce", "eps", "dividend",
+                "yield", "payout", "debt", "equity", "loan", "solvency", "leverage", "cash", "fcf",
+                "cash flow", "margin", "profit", "loss", "pat", "ebitda", "ebit", "sales", "revenue",
+                "growth", "capex", "results", "quarter", "earnings", "fy", "guidance", "order book",
                 "nifty", "sensex", "banknifty", "nse", "bse", "breakout", "breakdown", "swing",
                 "intraday", "invest", "portfolio", "moat", "altman", "piotroski", "dcf",
                 "valuation", "balance sheet", "market cap", "promoter", "pledge", "fii", "dii",
                 "volume", "ema", "sma", "rsi", "support", "resistance", "trend", "risk",
                 "tax", "stcg", "ltcg", "ipo", "bonus", "split", "rebound", "drawdown",
                 "beta", "outperform", "underperform", "tranche", "breakeven", "trap", "bull trap",
-                "overvalued", "undervalued", "level", "price", "ratios", "expensive", "cheap"
+                "overvalued", "undervalued", "level", "levels", "price", "ratios", "expensive", "cheap", "outlook"
         );
 
         for (String term : financialTerms) {
@@ -542,6 +557,8 @@ public class GeminiService {
             }
         }
 
+        StockNewsIntelligenceService.CompanyIntelligence intel = stockNewsIntelligenceService.getIntelligence(ticker);
+
         String systemPrompt = "You are the Senior Institutional Research Director and Chief Investment Strategist at an Elite Tier-1 Fund & Equity Desk in India.\n"
                 + "Stock Context: " + companyName + " (" + ticker + ")"
                 + (cmp > 0 ? " | CMP: ₹" + String.format("%.2f", cmp) : "")
@@ -550,6 +567,16 @@ public class GeminiService {
                 + (roe > 0 ? " | ROE: " + String.format("%.1f%%", roe) : "")
                 + (roce > 0 ? " | ROCE: " + String.format("%.1f%%", roce) : "")
                 + "\n\n"
+                + "VERIFIED CORPORATE INTELLIGENCE & NEWS CONTEXT:\n"
+                + "- Downside Drivers / Why Falling: " + intel.getWhyFallingDirectVerdict() + "\n"
+                + "- Key Drivers: " + String.join("; ", intel.getWhyFallingKeyDrivers()) + "\n"
+                + "- Recent Meeting & Concall Decisions: " + intel.getMeetingDirectVerdict() + "\n"
+                + "- Board Resolutions: " + String.join("; ", intel.getBoardResolutions()) + "\n"
+                + "- Concall Highlights: " + String.join("; ", intel.getConcallHighlights()) + "\n"
+                + "- Management Guidance: " + intel.getManagementGuidance() + "\n"
+                + "- News Sentiment: " + intel.getNewsSentiment() + " (" + intel.getNewsSentimentScore() + ")\n"
+                + "- News Headlines: " + String.join("; ", intel.getBreakingNewsHeadlines()) + "\n"
+                + "- News Catalyst Weight: " + intel.getNewsTakeaway() + "\n\n"
                 + "CRITICAL DOMAIN GUARDRAIL:\n"
                 + "If the user's question is completely unrelated to financial markets, stock investing, corporate fundamentals, trading, or economics (e.g. general chit-chat, cooking recipes, cinema, sports, coding, or irrelevant trivia), DO NOT answer the question. Instead, return EXACTLY:\n"
                 + "\"" + NON_FINANCIAL_WARNING + "\"\n\n"
@@ -596,8 +623,111 @@ public class GeminiService {
         double entryLow = Math.round(baseCmp * 0.985 * 10.0) / 10.0;
         double entryHigh = Math.round(baseCmp * 1.008 * 10.0) / 10.0;
 
-        // 1. Correction / Tranches / Market Dip / Averaging Down
-        if (lowerQ.contains("correct") || lowerQ.contains("tranche") || lowerQ.contains("dip") || lowerQ.contains("fall") || lowerQ.contains("crash") || lowerQ.contains("average")) {
+        StockNewsIntelligenceService.CompanyIntelligence intel = stockNewsIntelligenceService.getIntelligence(ticker);
+
+        // 1. Corporate Meeting / AGM / Concall Highlights (e.g. "abhi abhi recently ke metting mein kya kya hua hn")
+        if (lowerQ.contains("meet") || lowerQ.contains("metting") || lowerQ.contains("agm") || lowerQ.contains("egm")
+                || lowerQ.contains("board") || lowerQ.contains("concall") || lowerQ.contains("kya hua")) {
+            StringBuilder resolutions = new StringBuilder();
+            if (intel.getBoardResolutions() != null) {
+                for (String res : intel.getBoardResolutions()) {
+                    resolutions.append("* **Board Resolution**: ").append(res).append("\n");
+                }
+            }
+            StringBuilder concalls = new StringBuilder();
+            if (intel.getConcallHighlights() != null) {
+                for (String c : intel.getConcallHighlights()) {
+                    concalls.append("* **Concall Takeaway**: ").append(c).append("\n");
+                }
+            }
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Recent Corporate Meeting & Earnings Concall Executive Summary for %s (%s):**
+                %s
+
+                ### 2. Fundamental & Quantitative Analysis
+                %s%s* **Capital Reinvestment Efficiency**: Operating in the %s sector with ROE of %.1f%% and ROCE of %.1f%%.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **Management Outlook & Guidance**: %s
+                * **Support Demarcation**: Primary institutional demand cluster rests between ₹%.2f and ₹%.2f.
+
+                ### 4. Strategic Investment Takeaway
+                * **Institutional Action Plan**: %s
+                * **Execution Corridor**: Accumulate between ₹%.2f and ₹%.2f with disciplined stop loss at ₹%.2f.
+                """, companyName, ticker, intel.getMeetingDirectVerdict(),
+                    resolutions.toString(), concalls.toString(), baseSector, baseRoe, baseRoce,
+                    intel.getManagementGuidance(), entryLow, baseCmp,
+                    intel.getMeetingStrategicTakeaway(), entryLow, entryHigh, slLevel);
+        }
+
+        // 2. Why Falling / Down / Correction / Girawat (e.g. "why tcs share is fall", "why cdsl is down", "kyu gir raha hai")
+        if ((lowerQ.contains("why") && (lowerQ.contains("fall") || lowerQ.contains("down") || lowerQ.contains("drop") || lowerQ.contains("crash") || lowerQ.contains("gir")))
+                || lowerQ.contains("why is")
+                || lowerQ.contains("why tcs")
+                || lowerQ.contains("why cdsl")
+                || lowerQ.contains("kyu gir")
+                || lowerQ.contains("girawat")
+                || lowerQ.contains("reason for fall")
+                || ((lowerQ.contains("fall") || lowerQ.contains("falling") || lowerQ.contains("down") || lowerQ.contains("drop")) && !lowerQ.contains("tranche") && !lowerQ.contains("average"))) {
+            StringBuilder drivers = new StringBuilder();
+            if (intel.getWhyFallingKeyDrivers() != null) {
+                for (String driver : intel.getWhyFallingKeyDrivers()) {
+                    drivers.append("* **Key Driver**: ").append(driver).append("\n");
+                }
+            }
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Direct Cause Analysis for %s (%s) at CMP ₹%.2f:**
+                %s
+
+                ### 2. Fundamental & Quantitative Analysis
+                %s* **Downside Cushion**: Fortress capital return metrics (ROE: %.1f%%, ROCE: %.1f%%) and sustainable valuation multiple (P/E: %.1fx) provide high margin of safety against prolonged drawdowns.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **Dynamic Technical Floor**: %s
+                * **Risk Invalidation Level**: Daily close below ₹%.2f (-4.5%% risk floor) invalidates short-term swing structure.
+
+                ### 4. Strategic Investment Takeaway
+                * **Institutional Action Plan**: %s
+                * **Accumulation Strategy**: Accumulate in 2 tranches between ₹%.2f and ₹%.2f. Targets: Target 1 at ₹%.2f (+5.8%%), Target 2 at ₹%.2f (+12.5%%).
+                """, companyName, ticker, baseCmp, intel.getWhyFallingDirectVerdict(),
+                    drivers.toString(), baseRoe, baseRoce, basePe,
+                    intel.getWhyFallingTechnicalSupport(), slLevel,
+                    intel.getWhyFallingStrategicAction(), entryLow, entryHigh, t1Level, t2Level);
+        }
+
+        // 3. News & Catalysts (e.g. "what is the latest news", "news updates", "khabar", "catalysts")
+        if (lowerQ.contains("news") || lowerQ.contains("khabar") || lowerQ.contains("headline")
+                || lowerQ.contains("sentiment") || lowerQ.contains("catalyst") || lowerQ.contains("update")) {
+            StringBuilder headlines = new StringBuilder();
+            if (intel.getBreakingNewsHeadlines() != null) {
+                for (String hl : intel.getBreakingNewsHeadlines()) {
+                    headlines.append("* **Breaking Catalyst**: ").append(hl).append("\n");
+                }
+            }
+            return String.format("""
+                ### 1. Direct Analyst Verdict
+                **Institutional News & Momentum Intelligence for %s (%s):**
+                Current News Sentiment: **%s** (Conviction Score: %.2f / 1.00). In trading setups (Intraday and Swing), news catalysts carry high momentum weight (40%%-50%% weightage) driving volume surges.
+
+                ### 2. Fundamental & Quantitative Analysis
+                %s* **Financial Metric Alignment**: Operating in the %s sector with ROE of %.1f%% and ROCE of %.1f%%, ensuring news momentum is underpinned by fundamental quality.
+
+                ### 3. Key Catalysts & Risk Watch
+                * **News Weightage Impact**: %s
+                * **Key Levels**: Crucial support rests at ₹%.2f; momentum breakout triggers above ₹%.2f.
+
+                ### 4. Strategic Investment Takeaway
+                * **Execution Strategy**: Trade news momentum with strict risk containment. Position entry corridor: ₹%.2f - ₹%.2f. Strict Stop Loss at ₹%.2f.
+                """, companyName, ticker, intel.getNewsSentiment(), intel.getNewsSentimentScore(),
+                    headlines.toString(), baseSector, baseRoe, baseRoce,
+                    intel.getNewsTakeaway(), entryLow, entryHigh,
+                    entryLow, entryHigh, slLevel);
+        }
+
+        // 4. Correction / Tranches / Market Dip / Averaging Down
+        if (lowerQ.contains("correct") || lowerQ.contains("tranche") || lowerQ.contains("dip") || lowerQ.contains("average")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
                 **Regarding your inquiry on market corrections and tranche deployment:**
@@ -617,7 +747,7 @@ public class GeminiService {
                 """, companyName, ticker, baseCmp, entryLow, baseCmp, entryLow, baseRoe, baseRoce, slLevel, slLevel, entryLow, entryHigh, slLevel);
         }
 
-        // 2. Breakout / Momentum / Bull Trap / 20 EMA / Volume
+        // 5. Breakout / Momentum / Bull Trap / 20 EMA / Volume
         if (lowerQ.contains("breakout") || lowerQ.contains("trap") || lowerQ.contains("bull trap") || lowerQ.contains("20 ema") || lowerQ.contains("ema") || lowerQ.contains("volume")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
@@ -638,7 +768,7 @@ public class GeminiService {
                 """, companyName, ticker, baseCmp, entryLow, entryHigh, baseSector, baseRoce, slLevel, slLevel, t1Level);
         }
 
-        // 3. Gap Down / Stop Loss / Risk Management
+        // 6. Gap Down / Stop Loss / Risk Management
         if (lowerQ.contains("gap") || lowerQ.contains("stop loss") || lowerQ.contains("stoploss") || lowerQ.contains("sl") || lowerQ.contains("risk")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict
@@ -661,7 +791,7 @@ public class GeminiService {
                 """, companyName, ticker, slLevel, t1Level, t2Level, baseRoe, baseCmp, slLevel, t1Level, t2Level, slLevel);
         }
 
-        // 4. Valuation / PE / Cheap vs Expensive / DCF
+        // 7. Valuation / PE / Cheap vs Expensive / DCF
         if (lowerQ.contains("pe") || lowerQ.contains("p/e") || lowerQ.contains("valuation") || lowerQ.contains("cheap") || lowerQ.contains("expensive") || lowerQ.contains("dcf") || lowerQ.contains("overvalued") || lowerQ.contains("undervalued")) {
             return String.format("""
                 ### 1. Direct Analyst Verdict

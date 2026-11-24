@@ -4,10 +4,12 @@ import com.cortex.invest.dto.*;
 import com.cortex.invest.model.PortfolioHolding;
 import com.cortex.invest.repository.PortfolioRepository;
 import com.cortex.invest.service.DualEngineRadarService;
+import com.cortex.invest.service.ScheduledRadarTriggersService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/radar")
@@ -16,6 +18,7 @@ public class RadarController {
 
     private final DualEngineRadarService dualEngineRadarService;
     private final PortfolioRepository portfolioRepository;
+    private final ScheduledRadarTriggersService scheduledRadarTriggersService;
 
     @GetMapping("/summary")
     public RadarSummaryResponse getRadarSummary() {
@@ -54,5 +57,31 @@ public class RadarController {
     public PortfolioAuditResponse getPortfolioAudit() {
         List<PortfolioHolding> holdings = portfolioRepository.findAll();
         return dualEngineRadarService.auditPortfolio(holdings);
+    }
+
+    @GetMapping("/triggers/status")
+    public List<ScheduledRadarTriggersService.TriggerStatus> getTriggerStatuses() {
+        return scheduledRadarTriggersService.getAllTriggerStatuses();
+    }
+
+    @PostMapping("/triggers/run/{triggerName}")
+    public Map<String, Object> runTriggerManually(@PathVariable String triggerName) {
+        String name = triggerName.toLowerCase().trim();
+        if (name.equals("all")) {
+            return Map.of("status", "SUCCESS", "results", scheduledRadarTriggersService.executeAllTriggersManually());
+        }
+        String result;
+        switch (name) {
+            case "pre-market-sync" -> result = scheduledRadarTriggersService.runPreMarketSync();
+            case "daily-swing-scan" -> result = scheduledRadarTriggersService.runPostMarketDailyScan();
+            case "trade-tracker" -> result = scheduledRadarTriggersService.runTradeTracker();
+            case "long-term-radar" -> result = scheduledRadarTriggersService.runLongTermRadar();
+            case "portfolio-audit" -> result = scheduledRadarTriggersService.runPortfolioAudit();
+            case "weekend-sector-radar" -> result = scheduledRadarTriggersService.runWeeklySectorRadar();
+            default -> {
+                return Map.of("status", "ERROR", "message", "Unknown trigger: " + triggerName + ". Valid triggers: pre-market-sync, daily-swing-scan, trade-tracker, long-term-radar, portfolio-audit, weekend-sector-radar, all");
+            }
+        }
+        return Map.of("status", "SUCCESS", "trigger", triggerName, "result", result);
     }
 }
