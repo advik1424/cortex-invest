@@ -75,6 +75,7 @@ export const radarApi = {
   getSummary: () => api.get('/radar/summary'),
   getValueBuys: () => api.get('/radar/value-buys'),
   getSwingSignals: () => api.get('/radar/swing-signals'),
+  getIntradaySignals: () => api.get('/radar/intraday-signals'),
   getPortfolioAudit: () => api.get('/radar/portfolio-audit'),
 };
 

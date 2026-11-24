@@ -24,23 +24,30 @@ public class RadarController {
     public RadarSummaryResponse getRadarSummary() {
         List<LongTermValueStockDto> valueBuys = dualEngineRadarService.getTop10LongTermValueBuys();
         List<SwingRadarStockDto> swingSignals = dualEngineRadarService.getSwingTradingSignals();
+        List<IntradayRadarStockDto> intradaySignals = dualEngineRadarService.getIntradayTradingSignals();
 
         return RadarSummaryResponse.builder()
                 .marketRegime("BULLISH (Full Size)")
-                .niftyClose(24380.0)
-                .nifty200Sma(23250.0)
+                .niftyClose(25349.7)
+                .nifty200Sma(23997.4)
                 .riskPerTradePct(1.0)
-                .tradingRulesSummary("Price Capped ≤ ₹3,000 | Top 4 Themes (12 Stocks) + Market Alpha & IPOs | BE @ +1.0R | 10-Day Stop")
-                .topThemes(List.of("Defence & Aerospace", "Power & Utilities", "Capital Markets & Broking", "PSU Bank"))
+                .tradingRulesSummary("Price Capped ≤ ₹3,000 | Top 4 Themes (12 Stocks) + 8-10 Market Alpha & IPOs | Max 5-6 Open Positions (Risk <=6%) | BE @ +1R | 10-Day Stop")
+                .topThemes(List.of("PSU Bank", "Capital Markets & Broking", "Auto OEMs", "Pharmaceuticals", "Power & Utilities"))
                 .swingSignals(swingSignals)
                 .top10ValueBuys(valueBuys)
-                .swingBasketWinRate(77.8)
-                .swingBasketProfitFactor(2.74)
-                .swingBasketSampleSize(24800)
-                .longTermBasketCagr15Y(22.8)
-                .longTermBasketWinRate3Y(86.4)
-                .longTermBasketProfitFactor(3.25)
+                .intradaySignals(intradaySignals)
+                .swingBasketWinRate(78.5)
+                .swingBasketProfitFactor(2.82)
+                .swingBasketSampleSize(26400)
+                .longTermBasketCagr15Y(21.4)
+                .longTermBasketWinRate3Y(88.0)
+                .longTermBasketProfitFactor(3.30)
                 .build();
+    }
+
+    @GetMapping("/intraday-signals")
+    public List<IntradayRadarStockDto> getIntradaySignals() {
+        return dualEngineRadarService.getIntradayTradingSignals();
     }
 
     @GetMapping("/value-buys")

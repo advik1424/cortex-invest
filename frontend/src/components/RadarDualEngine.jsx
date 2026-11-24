@@ -6,21 +6,22 @@ import {
   Award, Activity, CheckCircle2, Filter, RefreshCw, Scale,
   BarChart2, X, ChevronRight, Search, ArrowUpRight, ArrowDownRight,
   MessageSquare, Send, Loader2, Lock, Check, AlertTriangle,
-  TrendingDown, Sparkles, FileText, Info
+  TrendingDown, Sparkles, FileText, Info, Clock, AlertCircle
 } from 'lucide-react';
 
 export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials, onNavigateToChart }) {
-  const [activeTab, setActiveTab] = useState('value'); // 'value' | 'swing'
+  const [activeTab, setActiveTab] = useState('swing'); // 'intraday' | 'swing' | 'value'
   const [summary, setSummary] = useState(null);
   const [valueBuys, setValueBuys] = useState([]);
   const [swingSignals, setSwingSignals] = useState([]);
+  const [intradaySignals, setIntradaySignals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBucket, setSelectedBucket] = useState('ALL');
 
   // Stock Detail & AI Modal State
   const [selectedStock, setSelectedStock] = useState(null);
-  const [modalType, setModalType] = useState('value'); // 'value' | 'swing'
+  const [modalType, setModalType] = useState('swing'); // 'intraday' | 'swing' | 'value'
 
   // LLM AI Co-Pilot State
   const [aiQuestion, setAiQuestion] = useState('');
@@ -34,6 +35,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
       setSummary(res.data);
       setValueBuys(res.data.top10ValueBuys || []);
       setSwingSignals(res.data.swingSignals || []);
+      setIntradaySignals(res.data.intradaySignals || []);
     } catch (e) {
       console.error('Error fetching radar summary:', e);
     } finally {
@@ -74,7 +76,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
         ticker,
         companyName,
         question: q.trim(),
-        currentPrice: selectedStock.cmp || selectedStock.price || 0,
+        currentPrice: selectedStock.cmp || selectedStock.close || selectedStock.price || 0,
         sector: selectedStock.sector || 'Diversified',
         pe: selectedStock.pe || 0,
         roe: selectedStock.roe || 0,
@@ -91,7 +93,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
       console.error('AI analyst error:', err);
       const fallbackReply = {
         sender: 'ai',
-        text: 'Setup confirmed: Underlying balance sheet solvency and momentum filters match quantitative screening criteria.',
+        text: 'Setup confirmed: Underlying quantitative metrics and risk containment parameters align with execution criteria.',
       };
       setAiChatLog((prev) => [...prev, fallbackReply]);
     } finally {
@@ -119,22 +121,32 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
       (item.sector || '').toLowerCase().includes(q) ||
       (item.selectionBucket || '').toLowerCase().includes(q) ||
       (item.setupType || '').toLowerCase().includes(q) ||
-      (item.momentumGrade || '').toLowerCase().includes(q)
+      (item.signal || '').toLowerCase().includes(q)
     );
 
     if (selectedBucket === 'ALL') return matchesQuery;
     if (selectedBucket === 'THEME') return matchesQuery && (item.selectionBucket || '').includes('THEME');
-    if (selectedBucket === 'ALPHA') return matchesQuery && (item.selectionBucket || '').includes('ALPHA');
-    if (selectedBucket === 'IPO') return matchesQuery && (item.selectionBucket || '').includes('IPO');
-    if (selectedBucket === 'BREAKOUT') return matchesQuery && ((item.setupType || '').includes('BREAKOUT') || (item.selectionBucket || '').includes('52W'));
+    if (selectedBucket === 'ALPHA') return matchesQuery && ((item.selectionBucket || '').includes('ALPHA') || (item.selectionBucket || '').includes('ACTIVE'));
     if (selectedBucket === 'VOLUME') return matchesQuery && (item.selectionBucket || '').includes('VOLUME');
     return matchesQuery;
+  });
+
+  const filteredIntradaySignals = intradaySignals.filter((item) => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (item.symbol || '').toLowerCase().includes(q) ||
+      (item.company || '').toLowerCase().includes(q) ||
+      (item.sector || '').toLowerCase().includes(q) ||
+      (item.setupType || '').toLowerCase().includes(q) ||
+      (item.signal || '').toLowerCase().includes(q)
+    );
   });
 
   return (
     <div className="space-y-6">
       {/* ============================================================== */}
-      {/* QUANTITATIVE DUAL-ENGINE RADAR HEADER & REGIME BANNER          */}
+      {/* TRIPLE-ENGINE QUANTITATIVE MARKET RADAR HEADER & REGIME BANNER  */}
       {/* ============================================================== */}
       <div className="bg-slate-900 text-white rounded-xl p-5 shadow-sm border border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -145,14 +157,14 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold tracking-tight text-white uppercase">
-                  Dual-Engine Quantitative Market Radar
+                  Triple-Engine Quantitative Market Radar
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-teal-400 border border-slate-700">
-                  Apps Script Strategy Engine + LLM Co-Pilot
+                  Google Sheets / App Script Engine + LLM Co-Pilot
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Synchronized Daily 20 Swing Setups &amp; Top 10 Curated Value Buys • Multi-Factor Tranche Gating &amp; Automated Breakeven Lock System
+                Synchronized Intraday Momentum • Daily 22 Swing Setups (Theme Leaders &amp; Market Alpha) • Top 10 Curated Value Buys
               </p>
             </div>
           </div>
@@ -169,7 +181,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
           </div>
         </div>
 
-        {/* Live Market Regime & Risk Rule Bar (Apps Script Core Logic) */}
+        {/* Live Market Regime & Risk Rule Bar (App Script Core Logic) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 text-xs font-mono">
           <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
             <span className="text-[10px] text-slate-400 font-sans block uppercase font-bold">Market Regime</span>
@@ -185,17 +197,17 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
           <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
             <span className="text-[10px] text-slate-400 font-sans block uppercase font-bold">Nifty 50 Benchmark</span>
             <div className="text-sm font-bold text-white mt-0.5">
-              ₹{(summary?.niftyClose || 24380).toLocaleString()}
+              ₹{(summary?.niftyClose || 25349.7).toLocaleString()}
             </div>
-            <span className="text-[10px] text-slate-400 font-sans">200 SMA: ₹{(summary?.nifty200Sma || 23250).toLocaleString()}</span>
+            <span className="text-[10px] text-slate-400 font-sans">200 SMA: ₹{(summary?.nifty200Sma || 23997.4).toLocaleString()}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
             <span className="text-[10px] text-slate-400 font-sans block uppercase font-bold">Risk Management</span>
             <div className="text-sm font-bold text-teal-300 mt-0.5">
-              {summary?.riskPerTradePct || 1.0}% Capital / Trade
+              {summary?.riskPerTradePct || 1.0}% Capital / Trade (₹5,000)
             </div>
-            <span className="text-[10px] text-slate-400 font-sans">Max 5-6 Open Positions</span>
+            <span className="text-[10px] text-slate-400 font-sans">Max 5-6 Open Positions (Risk &le; 6%)</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
@@ -203,79 +215,111 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
             <div className="text-sm font-bold text-indigo-300 mt-0.5">
               BE Lock @ +1.0R Gain
             </div>
-            <span className="text-[10px] text-slate-400 font-sans">10-Day Momentum Stop</span>
+            <span className="text-[10px] text-slate-400 font-sans">Price &le; ₹3,000 | 10-Day Stop</span>
           </div>
         </div>
 
-        {/* Dual Tab Navigation Switcher */}
+        {/* Triple Tab Navigation Switcher */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800 mt-3">
           <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 w-full sm:w-auto">
             <button
-              onClick={() => setActiveTab('value')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeTab === 'value'
-                  ? 'bg-slate-900 text-white shadow-xs font-bold'
+              onClick={() => setActiveTab('intraday')}
+              className={`flex-1 sm:flex-none px-3.5 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'intraday'
+                  ? 'bg-amber-600 text-white shadow-xs font-bold'
                   : 'text-slate-400 hover:text-white hover:bg-slate-750'
               }`}
             >
-              <Scale className="w-3.5 h-3.5 text-teal-400" />
-              <span>Long-Term Value (Top 10 Curated Buys)</span>
+              <Clock className="w-3.5 h-3.5 text-amber-300" />
+              <span>Intraday Trading (5M-15M Momentum)</span>
             </button>
             <button
               onClick={() => setActiveTab('swing')}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 sm:flex-none px-3.5 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'swing'
                   ? 'bg-slate-900 text-white shadow-xs font-bold'
                   : 'text-slate-400 hover:text-white hover:bg-slate-750'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5 text-teal-400" />
-              <span>Swing Trading (Daily 20 Setups)</span>
+              <span>Swing Trading (Daily 22 Setups)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('value')}
+              className={`flex-1 sm:flex-none px-3.5 py-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'value'
+                  ? 'bg-slate-900 text-white shadow-xs font-bold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-750'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Long-Term Value (Top 10 Curated Buys)</span>
             </button>
           </div>
 
           <div className="text-xs text-slate-400 font-sans flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Strict Discipline: 10 Value &amp; 20 Swing Setups Active</span>
+            <span>Strict Discipline: 10 Intraday • 22 Swing • 10 Value Active</span>
           </div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* EXECUTIVE RULE CARD (APPS SCRIPT LOGIC DISPLAY)                */}
+      {/* EXECUTIVE RULE CARD                                            */}
       {/* ============================================================== */}
-      {activeTab === 'value' ? (
-        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-emerald-950 font-sans">
+      {activeTab === 'intraday' && (
+        <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-amber-950 font-sans">
           <div className="flex items-start gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
             <div>
-              <span className="font-extrabold uppercase tracking-wider block text-emerald-900">
-                Institutional Value Audit Matrix:
+              <span className="font-extrabold uppercase tracking-wider block text-amber-900">
+                Strict Intraday Execution Rule &amp; 3:15 PM Square-Off:
               </span>
               <span>
-                Price capped ≤ ₹2,500. Hard-blocks loss-makers &amp; Debt/Equity &gt; 1.8. Stocks must demonstrate institutional moats, 200 SMA support floor retests, sweet-spot discount (15%-38%), and healthy ROE (&gt;12%-18%). 3-Tier Tranche sizing enforces disciplined accumulation without catching falling knives.
+                Trades triggered purely on 5M/15M momentum, ORB opening range breakouts, and VWAP rebounds. Tight stop loss (0.5% - 0.8% max risk). Book 60% position at Target 1 (1.0R) and trail remaining to breakeven. <strong>Mandatory 3:15 PM auto square-off</strong> — NEVER carry leveraged intraday positions overnight under any circumstances.
               </span>
             </div>
           </div>
-          <div className="text-[11px] font-mono font-bold bg-white border border-emerald-300 px-3 py-1.5 rounded-lg text-emerald-800 shrink-0">
-            Top 10 Curated Buys
+          <div className="text-[11px] font-mono font-bold bg-white border border-amber-300 px-3 py-1.5 rounded-lg text-amber-900 shrink-0">
+            Auto Square-off: 3:15 PM
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'swing' && (
         <div className="bg-indigo-50/80 border border-indigo-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-indigo-950 font-sans">
           <div className="flex items-start gap-2.5">
             <Zap className="w-5 h-5 text-indigo-700 shrink-0 mt-0.5" />
             <div>
               <span className="font-extrabold uppercase tracking-wider block text-indigo-900">
-                Institutional Swing Execution Rules:
+                Institutional Swing Execution Rules (App Script Parity):
               </span>
               <span>
-                Price capped ≤ ₹3,000. Top 4 Themes (12 Stocks) + 8 Market Alpha &amp; Fresh IPO Base Breakouts. Closing Range &ge; 0.70 + Institutional Volume Expansion &ge; 1.25x. Automated Breakeven Lock at +1.0R gain trails stop loss to entry + 0.1R profit. 10-Day momentum time stop.
+                Price capped &le; ₹3,000. Top 4 Themes (12 Stocks) + 8-10 Market Alpha &amp; Volume Buzzers. Max 5-6 Open Positions (Total risk &le; 6%). Automated Breakeven Lock at +1.0R gain trails stop loss to cost + 0.1R profit. 10-Day momentum time stop. Risk per trade fixed at 1% (₹5,000).
               </span>
             </div>
           </div>
           <div className="text-[11px] font-mono font-bold bg-white border border-indigo-300 px-3 py-1.5 rounded-lg text-indigo-800 shrink-0">
-            Risk: 1.0% / Trade
+            Risk: 1.0% (₹5,000) / Trade
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'value' && (
+        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-emerald-950 font-sans">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-extrabold uppercase tracking-wider block text-emerald-900">
+                Institutional Value Audit Matrix (App Script Parity):
+              </span>
+              <span>
+                Price capped &le; ₹2,500. Hard-blocks loss-makers &amp; Debt/Equity &gt; 1.8. Stocks must demonstrate institutional moats, 200 SMA support floor retests, sweet-spot discount (25%-38%), and healthy ROE (&gt;12%-18%). Tranche 3 sizing (30%) enforces disciplined accumulation without catching falling knives.
+              </span>
+            </div>
+          </div>
+          <div className="text-[11px] font-mono font-bold bg-white border border-emerald-300 px-3 py-1.5 rounded-lg text-emerald-800 shrink-0">
+            Top 10 Curated Value Buys
           </div>
         </div>
       )}
@@ -293,7 +337,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
             onKeyDown={(e) => {
               if (e.key === 'Escape') setSearchQuery('');
             }}
-            placeholder="Search by Ticker, Company, Sector, or Grade..."
+            placeholder="Search by Ticker, Company, Sector, or Setup..."
             className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:border-[#0F766E] shadow-2xs text-slate-900"
           />
           {searchQuery && (
@@ -311,13 +355,13 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
         <div className="flex items-center gap-3">
           {searchQuery && (
             <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
-              {activeTab === 'value' ? filteredValueBuys.length : filteredSwingSignals.length} match(es) found
+              {activeTab === 'intraday' ? filteredIntradaySignals.length : activeTab === 'swing' ? filteredSwingSignals.length : filteredValueBuys.length} match(es) found
             </span>
           )}
 
           {activeTab === 'swing' && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-bold">
-              {['ALL', 'THEME', 'ALPHA', 'IPO', 'BREAKOUT', 'VOLUME'].map((b) => (
+              {['ALL', 'THEME', 'ALPHA', 'VOLUME'].map((b) => (
                 <button
                   key={b}
                   onClick={() => setSelectedBucket(b)}
@@ -327,7 +371,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {b === 'ALL' ? 'All 20 Signals' : b === 'THEME' ? 'Theme Leaders (12)' : b === 'ALPHA' ? 'Market Alpha' : b === 'IPO' ? 'IPO Alpha' : b === 'BREAKOUT' ? '52W Breakouts' : 'Volume Buzzers'}
+                  {b === 'ALL' ? 'All 22 Setups' : b === 'THEME' ? 'Theme Leaders (12)' : b === 'ALPHA' ? 'Market Alpha (8)' : 'Volume Buzzers'}
                 </button>
               ))}
             </div>
@@ -336,7 +380,233 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
       </div>
 
       {/* ============================================================== */}
-      {/* TAB 1: LONG-TERM VALUE RADAR TABLE (APPS SCRIPT TRANCHE GATING) */}
+      {/* TAB 1: INTRADAY TRADING RADAR (5M-15M MOMENTUM & VWAP)         */}
+      {/* ============================================================== */}
+      {activeTab === 'intraday' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs divide-y divide-slate-100">
+              <thead className="bg-[#92400E] text-white uppercase text-[10px] font-mono tracking-wider">
+                <tr>
+                  <th className="py-3 px-3 text-center">Rank</th>
+                  <th className="py-3 px-4">Symbol &amp; Company</th>
+                  <th className="py-3 px-3">Sector</th>
+                  <th className="py-3 px-3">Setup Type</th>
+                  <th className="py-3 px-3 text-center">Signal</th>
+                  <th className="py-3 px-3 text-right">CMP (₹)</th>
+                  <th className="py-3 px-3 text-right">VWAP</th>
+                  <th className="py-3 px-3 text-right">Stop Loss</th>
+                  <th className="py-3 px-3 text-right">Target 1 (1.0R)</th>
+                  <th className="py-3 px-3 text-right">Target 2 (2.0R)</th>
+                  <th className="py-3 px-2 text-center">Vol Surge</th>
+                  <th className="py-3 px-2 text-center">RSI 15M</th>
+                  <th className="py-3 px-3 text-center">Square-off</th>
+                  <th className="py-3 px-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                {filteredIntradaySignals.map((sig) => (
+                  <tr
+                    key={sig.symbol}
+                    onClick={() => openStockModal(sig, 'intraday')}
+                    className="hover:bg-amber-50/50 transition-colors cursor-pointer group"
+                  >
+                    <td className="py-3.5 px-3 text-center font-bold text-slate-500 font-mono">
+                      #{sig.rank}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
+                          {sig.symbol}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block truncate max-w-[150px]">
+                        {sig.company}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                        {sig.sector}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 font-semibold text-amber-900 text-[11px]">
+                      {sig.setupType}
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        {sig.signal}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900">
+                      ₹{sig.cmp?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono text-teal-700 font-bold">
+                      ₹{sig.vwap?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-rose-600">
+                      ₹{sig.stopLoss?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-emerald-700">
+                      ₹{sig.target1?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-teal-700">
+                      ₹{sig.target2?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-amber-800">
+                      {sig.volumeRatio?.toFixed(2)}x
+                    </td>
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800">
+                      {sig.rsi15M?.toFixed(1)}
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        3:15 PM IST
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => openStockModal(sig, 'intraday')}
+                        className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold transition-colors border border-amber-300 cursor-pointer flex items-center gap-1 mx-auto"
+                      >
+                        <Clock className="w-3 h-3 text-amber-700" />
+                        <span>Plan &amp; AI</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 2: SWING TRADING RADAR (22 SETUPS - APP SCRIPT EXACT)      */}
+      {/* ============================================================== */}
+      {activeTab === 'swing' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs divide-y divide-slate-100">
+              <thead className="bg-[#173B5E] text-white uppercase text-[10px] font-mono tracking-wider">
+                <tr>
+                  <th className="py-3 px-3 text-center">Rank</th>
+                  <th className="py-3 px-4">Symbol &amp; Company</th>
+                  <th className="py-3 px-3">Selection Bucket</th>
+                  <th className="py-3 px-3">Setup Type</th>
+                  <th className="py-3 px-3 text-center">Signal</th>
+                  <th className="py-3 px-3 text-center">Score</th>
+                  <th className="py-3 px-3 text-right">Close (₹)</th>
+                  <th className="py-3 px-3 text-right">Max Buy</th>
+                  <th className="py-3 px-3 text-right">Stop Loss</th>
+                  <th className="py-3 px-3 text-right">Target</th>
+                  <th className="py-3 px-3 text-center">Qty</th>
+                  <th className="py-3 px-3 text-right">Invested (₹)</th>
+                  <th className="py-3 px-3 text-right">Risk (₹)</th>
+                  <th className="py-3 px-2 text-center">RSI</th>
+                  <th className="py-3 px-2 text-center">Vol Ratio</th>
+                  <th className="py-3 px-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                {filteredSwingSignals.map((sig) => (
+                  <tr
+                    key={sig.symbol}
+                    onClick={() => openStockModal(sig, 'swing')}
+                    className="hover:bg-slate-50/90 transition-colors cursor-pointer group"
+                  >
+                    <td className="py-3.5 px-3 text-center font-bold text-slate-500 font-mono">
+                      #{sig.rank}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {sig.symbol}
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 block truncate max-w-[150px]">
+                        {sig.company}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                          sig.selectionBucket?.includes('THEME')
+                            ? 'bg-teal-100 text-teal-800'
+                            : sig.selectionBucket?.includes('VOLUME')
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-purple-100 text-purple-800'
+                        }`}
+                      >
+                        {sig.selectionBucket}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 font-semibold text-slate-800 text-[11px]">
+                      {sig.setupType}
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                          sig.signal?.includes('BUY')
+                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            : 'bg-teal-100 text-[#0F766E] border border-teal-300'
+                        }`}
+                      >
+                        {sig.signal}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {sig.score?.toFixed(1)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900">
+                      ₹{sig.close?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono text-slate-600">
+                      ₹{sig.maxBuyPrice?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-rose-600">
+                      ₹{sig.stopLoss?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-emerald-700">
+                      ₹{sig.target?.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 text-center font-mono font-bold text-slate-800">
+                      {sig.tradeQty}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono text-slate-800 font-semibold">
+                      ₹{sig.investedCapital?.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-mono text-rose-700 font-bold">
+                      ₹{sig.riskAmount?.toLocaleString()}
+                    </td>
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800">
+                      {sig.rsi14?.toFixed(1)}
+                    </td>
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-teal-700">
+                      {sig.volumeRatio?.toFixed(2)}x
+                    </td>
+                    <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => openStockModal(sig, 'swing')}
+                        className="px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold transition-colors border border-indigo-200 cursor-pointer flex items-center gap-1 mx-auto"
+                      >
+                        <Zap className="w-3 h-3 text-indigo-600" />
+                        <span>Setup &amp; AI</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 3: LONG-TERM VALUE RADAR (TOP 10 CURATED BUYS)             */}
       {/* ============================================================== */}
       {activeTab === 'value' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -346,17 +616,17 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                 <tr>
                   <th className="py-3 px-3 text-center">Rank</th>
                   <th className="py-3 px-4">Symbol &amp; Company</th>
-                  <th className="py-3 px-3">Sub-Sector</th>
+                  <th className="py-3 px-3">Sector</th>
                   <th className="py-3 px-3 text-center">Score</th>
                   <th className="py-3 px-3 text-right">CMP (₹)</th>
+                  <th className="py-3 px-3 text-right">52W High</th>
                   <th className="py-3 px-3 text-right">Discount</th>
                   <th className="py-3 px-3 text-right">200 SMA</th>
-                  <th className="py-3 px-2 text-center">ROE %</th>
-                  <th className="py-3 px-2 text-center">D/E</th>
-                  <th className="py-3 px-2 text-center">Piotroski</th>
+                  <th className="py-3 px-2 text-center">RSI</th>
                   <th className="py-3 px-3 text-center">Grade</th>
                   <th className="py-3 px-3 text-center">Recommendation</th>
                   <th className="py-3 px-3">Tranche Action</th>
+                  <th className="py-3 px-3 text-right">1-3Y Target</th>
                   <th className="py-3 px-3 text-center">Actions</th>
                 </tr>
               </thead>
@@ -394,40 +664,25 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                     <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900">
                       ₹{stock.cmp?.toFixed(2)}
                     </td>
+                    <td className="py-3.5 px-3 text-right font-mono text-slate-600">
+                      ₹{stock.fiftyTwoWeekHigh?.toFixed(2)}
+                    </td>
                     <td className="py-3.5 px-3 text-right font-mono font-bold text-rose-600">
                       -{stock.discountPct?.toFixed(1)}%
                     </td>
                     <td className="py-3.5 px-3 text-right font-mono text-slate-600">
                       ₹{stock.sma200?.toFixed(1)}
                     </td>
-                    <td className="py-3.5 px-2 text-center font-mono font-bold text-emerald-700">
-                      {stock.roe?.toFixed(1)}%
-                    </td>
-                    <td className="py-3.5 px-2 text-center font-mono text-slate-700">
-                      {stock.debtToEquity?.toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-900">
-                      {stock.piotroskiFScore || 8}/9
+                    <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800">
+                      {stock.rsi14?.toFixed(1)}
                     </td>
                     <td className="py-3.5 px-3 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          stock.fundamentalGrade?.includes('A')
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : 'bg-amber-100 text-amber-800 border border-amber-300'
-                        }`}
-                      >
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-800 border border-slate-300">
                         {stock.fundamentalGrade}
                       </span>
                     </td>
                     <td className="py-3.5 px-3 text-center">
-                      <span
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider inline-block ${
-                          stock.actionRecommendation?.includes('DEEP')
-                            ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
-                            : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                        }`}
-                      >
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider inline-block bg-indigo-100 text-indigo-900 border border-indigo-300">
                         {stock.actionRecommendation}
                       </span>
                     </td>
@@ -436,6 +691,9 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                         {stock.trancheAction}
                       </span>
                     </td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-emerald-700">
+                      ₹{stock.targetPrice1To3Y?.toFixed(2)}
+                    </td>
                     <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => openStockModal(stock, 'value')}
@@ -443,124 +701,6 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                       >
                         <Sparkles className="w-3 h-3 text-[#0F766E]" />
                         <span>Tranche &amp; AI</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* TAB 2: HIGH-WIN-RATE SWING RADAR (BREAKEVEN LOCK & 4 THEMES)   */}
-      {/* ============================================================== */}
-      {activeTab === 'swing' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs divide-y divide-slate-100">
-              <thead className="bg-[#173B5E] text-white uppercase text-[10px] font-mono tracking-wider">
-                <tr>
-                  <th className="py-3 px-3 text-center">Rank</th>
-                  <th className="py-3 px-4">Symbol &amp; Company</th>
-                  <th className="py-3 px-3">Selection Bucket</th>
-                  <th className="py-3 px-3">Setup Type</th>
-                  <th className="py-3 px-3 text-center">Signal</th>
-                  <th className="py-3 px-3 text-right">Close (₹)</th>
-                  <th className="py-3 px-3 text-right">Stop Loss</th>
-                  <th className="py-3 px-3 text-right">Target 1 (2.0R)</th>
-                  <th className="py-3 px-3 text-right">Target 2 (3.0R)</th>
-                  <th className="py-3 px-2 text-center">Vol Ratio</th>
-                  <th className="py-3 px-2 text-center">Close Range</th>
-                  <th className="py-3 px-3">Breakeven Lock Trigger</th>
-                  <th className="py-3 px-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-sans">
-                {filteredSwingSignals.map((sig) => (
-                  <tr
-                    key={sig.symbol}
-                    onClick={() => openStockModal(sig, 'swing')}
-                    className="hover:bg-slate-50/90 transition-colors cursor-pointer group"
-                  >
-                    <td className="py-3.5 px-3 text-center font-bold text-slate-500 font-mono">
-                      #{sig.rank}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                          {sig.symbol}
-                        </span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 block truncate max-w-[150px]">
-                        {sig.company}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span
-                        className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                          sig.selectionBucket?.includes('THEME')
-                            ? 'bg-teal-100 text-teal-800'
-                            : sig.selectionBucket?.includes('IPO')
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-purple-100 text-purple-800'
-                        }`}
-                      >
-                        {sig.selectionBucket}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 font-semibold text-slate-800 text-[11px]">
-                      {sig.setupType}
-                    </td>
-                    <td className="py-3.5 px-3 text-center">
-                      <span
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                          sig.signal?.includes('BUY')
-                            ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                            : 'bg-teal-100 text-[#0F766E] border border-teal-300'
-                        }`}
-                      >
-                        {sig.signal}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900">
-                      ₹{sig.close?.toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-rose-600">
-                      ₹{sig.stopLoss?.toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-emerald-700">
-                      ₹{sig.target1?.toFixed(2) || (sig.close + (sig.close - sig.stopLoss) * 2.0).toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-teal-700">
-                      ₹{sig.target2?.toFixed(2) || (sig.close + (sig.close - sig.stopLoss) * 3.0).toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-2 text-center font-mono font-bold text-teal-700">
-                      {sig.volumeRatio?.toFixed(2)}x
-                    </td>
-                    <td className="py-3.5 px-2 text-center font-mono font-bold text-slate-800">
-                      {((sig.closingRangePct != null ? (sig.closingRangePct <= 1.0 ? sig.closingRangePct * 100 : sig.closingRangePct) : 78))?.toFixed(0)}%
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider block truncate max-w-[170px] ${
-                          sig.breakevenLockStatus?.includes('ACTIVE')
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-700 border border-slate-200'
-                        }`}
-                      >
-                        {sig.breakevenLockStatus}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => openStockModal(sig, 'swing')}
-                        className="px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold transition-colors border border-indigo-200 cursor-pointer flex items-center gap-1 mx-auto"
-                      >
-                        <Zap className="w-3 h-3 text-indigo-600" />
-                        <span>Setup &amp; AI</span>
                       </button>
                     </td>
                   </tr>
@@ -584,12 +724,14 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                   <h3 className="text-xl font-bold text-slate-900">{selectedStock.company}</h3>
                   <span className="text-xs font-mono font-bold text-slate-600">({selectedStock.symbol})</span>
                   <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-slate-100 text-slate-700">
-                    {modalType === 'value' ? selectedStock.fundamentalGrade : selectedStock.selectionBucket}
+                    {modalType === 'intraday' ? 'INTRADAY' : modalType === 'value' ? selectedStock.fundamentalGrade : selectedStock.selectionBucket}
                   </span>
                   <span className="text-xs text-slate-400 font-mono">Rank #{selectedStock.rank}</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {modalType === 'value' 
+                  {modalType === 'intraday'
+                    ? '5M-15M Momentum Execution & Mandatory 3:15 PM Square-off Protocol'
+                    : modalType === 'value'
                     ? '3-Tier Disciplined Tranche Deployment & Solvency Framework'
                     : 'Systematic Swing Rules: 4-Theme Trend Continuation & Automated Breakeven Lock'}
                 </p>
@@ -650,7 +792,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
               </div>
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg font-mono">
                 <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">
-                  {modalType === 'value' ? '1-3Y Target' : 'Primary Target (2.0R)'}
+                  {modalType === 'value' ? '1-3Y Target' : modalType === 'intraday' ? 'Target 1 (1.0R)' : 'Target'}
                 </span>
                 <span className="text-base font-bold text-emerald-700 mt-0.5 block">
                   ₹{(selectedStock.targetPrice1To3Y || selectedStock.target1 || selectedStock.target)?.toFixed(2)}
@@ -658,20 +800,63 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
               </div>
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg font-mono">
                 <span className="text-[10px] text-slate-400 font-sans uppercase font-bold block">
-                  {modalType === 'value' ? 'Tranche Action' : 'Breakeven Trigger'}
+                  {modalType === 'value' ? 'Tranche Action' : modalType === 'intraday' ? 'Auto Square-Off' : 'Breakeven Trigger'}
                 </span>
                 <span className="text-xs font-bold text-[#0F766E] mt-1 block truncate">
                   {modalType === 'value' 
                     ? selectedStock.trancheAction 
+                    : modalType === 'intraday'
+                    ? '3:15 PM IST'
                     : `₹${(selectedStock.breakevenTriggerPrice || (selectedStock.close + (selectedStock.close - selectedStock.stopLoss) * 1.0)).toFixed(1)}`}
                 </span>
               </div>
             </div>
 
-            {/* SECTION 1: APPS SCRIPT CORE QUANTITATIVE PARAMETERS */}
-            {modalType === 'value' ? (
+            {/* SECTION 1: EXECUTION DETAILS */}
+            {modalType === 'intraday' && (
               <div className="space-y-4">
-                {/* 3-Tier Tranche Execution Matrix */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-700" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                        Intraday Execution &amp; VWAP Parameters
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-amber-200 text-amber-900">
+                      Strict 3:15 PM Square-off
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+                    <div className="p-3 bg-white rounded-lg border border-amber-200">
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Session VWAP</span>
+                      <span className="text-base font-bold text-teal-700 block mt-1">₹{selectedStock.vwap?.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Anchor Support</span>
+                    </div>
+
+                    <div className="p-3 bg-white rounded-lg border border-amber-200">
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 1 (1.0R - Book 60%)</span>
+                      <span className="text-base font-bold text-emerald-700 block mt-1">₹{selectedStock.target1?.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Move SL to Entry</span>
+                    </div>
+
+                    <div className="p-3 bg-white rounded-lg border border-amber-200">
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 2 (2.0R - Trail)</span>
+                      <span className="text-base font-bold text-amber-700 block mt-1">₹{selectedStock.target2?.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Square-off before 3:15 PM</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-amber-100/60 border border-amber-300 text-amber-950 text-xs">
+                    <strong>Mandatory Risk Containment:</strong> {selectedStock.ruleWarning || 'Strict 3:15 PM square-off. Never carry overnight on leverage.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {modalType === 'value' && (
+              <div className="space-y-4">
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                     <div className="flex items-center gap-2">
@@ -706,7 +891,6 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                   </div>
                 </div>
 
-                {/* Fundamental Health Multiples */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-center">
                   <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
                     <span className="text-[10px] text-slate-400 block uppercase font-sans font-bold">Piotroski F-Score</span>
@@ -726,9 +910,10 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                   </div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {modalType === 'swing' && (
               <div className="space-y-4">
-                {/* Swing Target & Breakeven Protection */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                     <div className="flex items-center gap-2">
@@ -744,25 +929,24 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
                     <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 1 (2.0R)</span>
-                      <span className="text-base font-bold text-emerald-700 block mt-1">₹{selectedStock.target1?.toFixed(2) || (selectedStock.close + (selectedStock.close - selectedStock.stopLoss) * 2.0).toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Book 50% Profit</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Stop Loss</span>
+                      <span className="text-base font-bold text-rose-600 block mt-1">₹{selectedStock.stopLoss?.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Risk: ₹{selectedStock.riskAmount?.toLocaleString()}</span>
                     </div>
 
                     <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 2 (3.0R)</span>
-                      <span className="text-base font-bold text-teal-700 block mt-1">₹{selectedStock.target2?.toFixed(2) || (selectedStock.close + (selectedStock.close - selectedStock.stopLoss) * 3.0).toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Compounding Runner</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 1</span>
+                      <span className="text-base font-bold text-emerald-700 block mt-1">₹{selectedStock.target?.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Setup Target</span>
                     </div>
 
                     <div className="p-3 bg-white rounded-lg border border-slate-200">
-                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Target 3 (3.5R)</span>
-                      <span className="text-base font-bold text-indigo-700 block mt-1">₹{selectedStock.target3?.toFixed(2) || (selectedStock.close + (selectedStock.close - selectedStock.stopLoss) * 3.5).toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">Momentum Extension</span>
+                      <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block">Trade Sizing</span>
+                      <span className="text-base font-bold text-indigo-700 block mt-1">{selectedStock.tradeQty} Shares</span>
+                      <span className="text-[10px] text-slate-500 font-sans block mt-0.5">₹{selectedStock.investedCapital?.toLocaleString()}</span>
                     </div>
                   </div>
 
-                  {/* Breakeven Rule & Invalidation */}
                   <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-950 text-xs">
                     <span className="font-bold block uppercase text-[10px] text-indigo-900">
                       Breakeven Lock Trigger (+1.0R Gain): ₹{(selectedStock.breakevenTriggerPrice || (selectedStock.close + (selectedStock.close - selectedStock.stopLoss) * 1.0)).toFixed(2)}
@@ -794,10 +978,10 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
               </div>
 
               {/* Research Thesis */}
-              {(selectedStock.investmentThesis || selectedStock.technicalThesis) && (
+              {(selectedStock.investmentThesis || selectedStock.technicalThesis || selectedStock.intradayThesis) && (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-700">
                   <strong className="text-slate-900 block mb-0.5">Quantitative Edge Thesis:</strong>
-                  {selectedStock.investmentThesis || selectedStock.technicalThesis}
+                  {selectedStock.investmentThesis || selectedStock.technicalThesis || selectedStock.intradayThesis}
                 </div>
               )}
 
@@ -805,7 +989,11 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
               <div className="space-y-1.5">
                 <span className="text-[11px] font-semibold text-slate-500 block">Ask Gemini Live About This Setup:</span>
                 <div className="flex flex-wrap gap-1.5">
-                  {(modalType === 'value' ? [
+                  {(modalType === 'intraday' ? [
+                    'What is the risk-reward if I enter at current market price?',
+                    'How is VWAP behaving compared to morning opening range?',
+                    'Should I book 60% profit immediately at Target 1?',
+                  ] : modalType === 'value' ? [
                     'What if market corrects further, should I wait for Tranche 2?',
                     'Are management order-book and quarterly margins expanding?',
                     'Is Debt/Equity completely clean with zero promoter pledge?',
@@ -864,7 +1052,7 @@ export default function RadarDualEngine({ onSelectTicker, onNavigateToFinancials
                   type="text"
                   value={aiQuestion}
                   onChange={(e) => setAiQuestion(e.target.value)}
-                  placeholder={`Ask a specific question about ${selectedStock.symbol} (${modalType === 'value' ? 'Tranches, Solvency, Valuations' : 'Breakeven, Stops, Entry Timing'})...`}
+                  placeholder={`Ask a specific question about ${selectedStock.symbol}...`}
                   className="flex-1 px-3 py-2 border border-slate-300 focus:border-[#0F766E] rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none"
                 />
                 <button

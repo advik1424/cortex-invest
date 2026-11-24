@@ -20,6 +20,7 @@ public class RadarSummaryResponse {
     private List<String> topThemes;        // Top 4 weekly themes
     private List<SwingRadarStockDto> swingSignals;
     private List<LongTermValueStockDto> top10ValueBuys;
+    private List<IntradayRadarStockDto> intradaySignals;
 
     // 15-Year Quantitative Backtesting Basket Summary
     private Double swingBasketWinRate;         // e.g. 78.2%

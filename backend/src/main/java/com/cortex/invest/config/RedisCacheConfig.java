@@ -52,6 +52,7 @@ public class RedisCacheConfig {
                 cacheConfigurations.put("screener_data", defaultCacheConfig.entryTtl(Duration.ofHours(1)));
                 cacheConfigurations.put("value_buys", defaultCacheConfig.entryTtl(Duration.ofMinutes(30)));
                 cacheConfigurations.put("swing_signals", defaultCacheConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("intraday_signals", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
 
                 return RedisCacheManager.builder(redisConnectionFactory)
                         .cacheDefaults(defaultCacheConfig)
@@ -69,6 +70,7 @@ public class RedisCacheConfig {
                 "quote_cache",
                 "value_buys",
                 "swing_signals",
+                "intraday_signals",
                 "radar_summary"
         );
     }
