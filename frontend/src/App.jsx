@@ -10,11 +10,11 @@ const ChartVisionLight = lazy(() => import('./components/ChartVisionLight'));
 const PortfolioLight = lazy(() => import('./components/PortfolioLight'));
 const RadarDualEngine = lazy(() => import('./components/RadarDualEngine'));
 
-// Bulletproof Error Boundary to catch any JS runtime exception and display a clean recovery UI instead of white blank screen
+// Bulletproof Error Boundary with interactive retry & diagnostic message
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -23,29 +23,43 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Cortex Invest caught runtime error:', error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[500px] flex flex-col items-center justify-center p-6 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-2xs">
             <AlertTriangle className="w-7 h-7" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Workspace Recovery</h2>
-          <p className="text-xs text-slate-500 max-w-md">
-            The terminal encountered a transient component error. Click below to reload cleanly.
-          </p>
-          <button
-            onClick={() => {
-              this.setState({ hasError: false });
-              window.location.reload();
-            }}
-            className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Reload Terminal</span>
-          </button>
+          <div className="max-w-md space-y-1">
+            <h2 className="text-lg font-bold text-slate-900">Workspace Recovery</h2>
+            <p className="text-xs text-slate-500">
+              The terminal caught a component initialization issue: <code className="text-rose-600 font-mono text-[11px] block mt-1">{this.state.error?.message || 'Unknown error'}</code>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }}
+              className="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Clear Cache &amp; Reload Terminal</span>
+            </button>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+              }}
+              className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold cursor-pointer"
+            >
+              <span>Try Safe Continue</span>
+            </button>
+          </div>
         </div>
       );
     }

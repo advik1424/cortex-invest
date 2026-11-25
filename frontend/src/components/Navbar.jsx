@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, TrendingUp, Briefcase, Compass, ChevronDown, CheckCircle2, LogOut, X, Activity, BarChart2, Radio, Zap } from 'lucide-react';
+import { Search, TrendingUp, Briefcase, Compass, ChevronDown, CheckCircle2, LogOut, X, Activity, BarChart2, Radio, Zap, Scale } from 'lucide-react';
 import { screenerApi, marketApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
