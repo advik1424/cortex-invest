@@ -2,12 +2,14 @@ package com.cortex.invest.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -19,12 +21,57 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 public class MarketDataService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // In-memory store of official company metadata from nifty500.csv
+    private final Map<String, CompanyMetadata> companyMap = new ConcurrentHashMap<>();
+
+    public record CompanyMetadata(String symbol, String name, String industry) {}
+
+    @PostConstruct
+    public void init() {
+        try {
+            ClassPathResource res = new ClassPathResource("nifty500.csv");
+            if (res.exists()) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(res.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    boolean isHeader = true;
+                    while ((line = br.readLine()) != null) {
+                        if (isHeader) {
+                            isHeader = false;
+                            continue;
+                        }
+                        String[] parts = line.split(",");
+                        if (parts.length >= 3) {
+                            String companyName = parts[0].trim();
+                            String industry = parts[1].trim();
+                            String symbol = parts[2].trim().toUpperCase();
+                            if (!symbol.isEmpty()) {
+                                companyMap.put(symbol, new CompanyMetadata(symbol, companyName, industry));
+                            }
+                        }
+                    }
+                }
+                log.info("MarketDataService pre-loaded {} NSE 500 company records", companyMap.size());
+            }
+        } catch (Exception e) {
+            log.warn("MarketDataService could not load nifty500.csv: {}", e.getMessage());
+        }
+
+        // Essential fallback records if CSV not present
+        if (!companyMap.containsKey("PNB")) {
+            companyMap.put("PNB", new CompanyMetadata("PNB", "Punjab National Bank", "Financial Services / PSU Bank"));
+        }
+        if (!companyMap.containsKey("RELIANCE")) {
+            companyMap.put("RELIANCE", new CompanyMetadata("RELIANCE", "Reliance Industries Ltd", "Oil & Gas / Diversified"));
+        }
+    }
 
     @Data
     @Builder
@@ -56,7 +103,7 @@ public class MarketDataService {
     }
 
     /**
-     * Fetch real-time market quote dynamically for any ticker (zero hardcoding)
+     * Fetch real-time market quote dynamically for any ticker from Yahoo Finance
      */
     @Cacheable(value = "quote_cache", key = "#rawTicker != null ? #rawTicker.trim().toUpperCase() : 'RELIANCE'")
     public LiveQuote fetchLiveQuote(String rawTicker) {
@@ -78,10 +125,10 @@ public class MarketDataService {
             URL url = URI.create(urlStr).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             conn.setRequestProperty("Accept", "application/json");
-            conn.setConnectTimeout(4000);
-            conn.setReadTimeout(4000);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
 
             if (conn.getResponseCode() == 200) {
                 StringBuilder response = new StringBuilder();
@@ -94,28 +141,64 @@ public class MarketDataService {
                 JsonNode resultNode = root.path("chart").path("result");
                 if (resultNode.isArray() && resultNode.size() > 0) {
                     JsonNode meta = resultNode.get(0).path("meta");
-                    livePrice = meta.path("regularMarketPrice").asDouble();
-                    prevCl = meta.path("chartPreviousClose").asDouble(livePrice);
-                    dayH = meta.path("regularMarketDayHigh").asDouble(livePrice);
-                    dayL = meta.path("regularMarketDayLow").asDouble(livePrice);
-                    high52 = meta.path("fiftyTwoWeekHigh").asDouble(livePrice * 1.2);
-                    low52 = meta.path("fiftyTwoWeekLow").asDouble(livePrice * 0.8);
-                    vol = meta.path("regularMarketVolume").asLong(1500000);
-                    exch = meta.path("fullExchangeName").asText("NSE");
-                    String symName = meta.path("shortName").asText("");
-                    if (!symName.isBlank()) extractedName = symName;
+                    double p = meta.path("regularMarketPrice").asDouble();
+                    if (p > 0) {
+                        livePrice = p;
+                        prevCl = meta.path("chartPreviousClose").asDouble(livePrice);
+                        dayH = meta.path("regularMarketDayHigh").asDouble(livePrice);
+                        dayL = meta.path("regularMarketDayLow").asDouble(livePrice);
+                        high52 = meta.path("fiftyTwoWeekHigh").asDouble(livePrice * 1.25);
+                        low52 = meta.path("fiftyTwoWeekLow").asDouble(livePrice * 0.75);
+                        vol = meta.path("regularMarketVolume").asLong(2500000L);
+                        exch = meta.path("fullExchangeName").asText("NSE");
+                        String symName = meta.path("shortName").asText("");
+                        if (!symName.isBlank()) extractedName = symName;
+                    }
                 }
             }
         } catch (Exception e) {
-            log.debug("Live quote fetch for {} encountered: {}", resolvedSymbol, e.getMessage());
+            log.warn("Live quote fetch from Yahoo for {} encountered: {}", resolvedSymbol, e.getMessage());
+        }
+
+        // Secondary fallback for common bluechip / high-profile stocks if live network is unreachable
+        if (livePrice == null) {
+            livePrice = getCuratedPriceFallback(cleanTicker);
         }
 
         return buildDynamicMetrics(cleanTicker, extractedName, livePrice, prevCl, dayH, dayL, high52, low52, vol, exch);
     }
 
+    private Double getCuratedPriceFallback(String ticker) {
+        return switch (ticker) {
+            case "PNB" -> 147.80;
+            case "SBIN" -> 854.50;
+            case "BANKBARODA" -> 262.30;
+            case "CANBK" -> 133.75;
+            case "UCOBANK" -> 24.74;
+            case "UNIONBANK" -> 142.10;
+            case "RELIANCE" -> 1285.40;
+            case "HDFCBANK" -> 1742.80;
+            case "ICICIBANK" -> 1265.00;
+            case "AXISBANK" -> 1180.50;
+            case "KOTAKBANK" -> 1795.00;
+            case "TATAMOTORS" -> 785.40;
+            case "TCS" -> 3520.00;
+            case "INFY" -> 1890.20;
+            case "WIPRO" -> 187.30;
+            case "ITC" -> 472.60;
+            case "BEL" -> 288.00;
+            case "HAL" -> 4420.00;
+            case "CDSL" -> 1425.00;
+            case "SUZLON" -> 64.80;
+            case "ZOMATO" -> 268.50;
+            default -> null;
+        };
+    }
+
     public record InstitutionalProfile(String companyName, String sector, double roe, double roce, double pe, double de) {}
 
     private static final Map<String, InstitutionalProfile> PREMIER_PROFILES = Map.ofEntries(
+            Map.entry("PNB", new InstitutionalProfile("Punjab National Bank", "Financial Services / PSU Bank", 13.8, 15.2, 8.4, 0.95)),
             Map.entry("TCS", new InstitutionalProfile("Tata Consultancy Services Ltd", "Information Technology", 36.8, 48.2, 27.4, 0.00)),
             Map.entry("CDSL", new InstitutionalProfile("Central Depository Services (India) Ltd", "Capital Markets & Broking", 31.4, 36.2, 48.0, 0.00)),
             Map.entry("RELIANCE", new InstitutionalProfile("Reliance Industries Ltd", "Oil & Gas / Diversified", 11.2, 12.8, 24.5, 0.42)),
@@ -137,9 +220,7 @@ public class MarketDataService {
                                           Double dayHigh, Double dayLow, Double high52,
                                           Double low52, Long volume, String exchange) {
 
-        // If live price was not available from Yahoo (e.g. holiday or unmapped symbol),
-        // compute a sensible baseline from ticker hash to avoid 0 or null
-        double finalPrice = livePrice != null ? livePrice : (Math.abs(ticker.hashCode() % 2500) + 250.0);
+        double finalPrice = livePrice != null ? livePrice : 100.0;
         double finalPrevClose = prevClose != null ? prevClose : (finalPrice * 0.995);
         double change = finalPrice - finalPrevClose;
         double changePct = finalPrevClose > 0 ? (change / finalPrevClose) * 100 : 0.0;
@@ -150,15 +231,36 @@ public class MarketDataService {
         double finalLow52 = low52 != null ? low52 : (finalPrice * 0.72);
 
         InstitutionalProfile profile = PREMIER_PROFILES.get(ticker);
-        double pe = profile != null ? profile.pe() : Math.round((18.0 + (Math.abs(ticker.hashCode() % 300) / 10.0)) * 10.0) / 10.0;
-        double bv = Math.round((finalPrice * 0.35) * 10.0) / 10.0;
-        double roce = profile != null ? profile.roce() : Math.round((14.0 + (Math.abs(ticker.hashCode() % 160) / 10.0)) * 10.0) / 10.0;
-        double roe = profile != null ? profile.roe() : Math.round((12.0 + (Math.abs(ticker.hashCode() % 140) / 10.0)) * 10.0) / 10.0;
-        double de = profile != null ? profile.de() : Math.round((0.15 + (Math.abs(ticker.hashCode() % 80) / 100.0)) * 100.0) / 100.0;
-        String mcap = "₹ " + String.format("%,.0f", finalPrice * 16.5) + " Cr";
+        CompanyMetadata meta = companyMap.get(ticker);
 
-        String finalName = profile != null ? profile.companyName() : (extractedName != null && !extractedName.equals(ticker) ? extractedName : (ticker + " Ltd"));
-        String finalSector = profile != null ? profile.sector() : (DualEngineRadarService.MOAT_LEADERS.containsKey(ticker) ? DualEngineRadarService.MOAT_LEADERS.get(ticker).moat() : "Diversified Equities");
+        double pe = profile != null ? profile.pe() : 18.5;
+        double bv = Math.round((finalPrice * 0.45) * 10.0) / 10.0;
+        double roce = profile != null ? profile.roce() : 15.2;
+        double roe = profile != null ? profile.roe() : 14.1;
+        double de = profile != null ? profile.de() : 0.25;
+        String mcap = "₹ " + String.format("%,.0f", finalPrice * 22.5) + " Cr";
+
+        String finalName;
+        if (profile != null) {
+            finalName = profile.companyName();
+        } else if (meta != null && meta.name() != null) {
+            finalName = meta.name();
+        } else if (extractedName != null && !extractedName.equals(ticker)) {
+            finalName = extractedName;
+        } else {
+            finalName = ticker + " Ltd";
+        }
+
+        String finalSector;
+        if (profile != null) {
+            finalSector = profile.sector();
+        } else if (meta != null && meta.industry() != null) {
+            finalSector = meta.industry();
+        } else if (DualEngineRadarService.MOAT_LEADERS.containsKey(ticker)) {
+            finalSector = DualEngineRadarService.MOAT_LEADERS.get(ticker).moat();
+        } else {
+            finalSector = "Diversified Equities";
+        }
 
         return LiveQuote.builder()
                 .symbol(ticker)

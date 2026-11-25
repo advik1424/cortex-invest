@@ -8,12 +8,20 @@ import com.cortex.invest.dto.ScreenerDataResponse;
 import com.cortex.invest.service.GeminiService;
 import com.cortex.invest.service.MarketDataService;
 import com.cortex.invest.service.ScreenerService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/screener")
 @RequiredArgsConstructor
@@ -23,75 +31,17 @@ public class ScreenerController {
     private final GeminiService geminiService;
     private final MarketDataService marketDataService;
 
-    // Comprehensive universe of Indian equities across all sectors
-    private final List<Map<String, String>> catalog = List.of(
-            Map.of("ticker", "RELIANCE", "name", "Reliance Industries Ltd", "sector", "Oil & Gas / Retail / Telecom"),
-            Map.of("ticker", "TATAMOTORS", "name", "Tata Motors Ltd", "sector", "Automobile & EV"),
-            Map.of("ticker", "HDFCBANK", "name", "HDFC Bank Ltd", "sector", "Banking & Finance"),
-            Map.of("ticker", "ICICIBANK", "name", "ICICI Bank Ltd", "sector", "Private Sector Bank"),
-            Map.of("ticker", "SBIN", "name", "State Bank of India", "sector", "Public Sector Bank"),
-            Map.of("ticker", "KOTAKBANK", "name", "Kotak Mahindra Bank Ltd", "sector", "Banking & Finance"),
-            Map.of("ticker", "AXISBANK", "name", "Axis Bank Ltd", "sector", "Banking & Finance"),
-            Map.of("ticker", "INFY", "name", "Infosys Ltd", "sector", "Information Technology"),
-            Map.of("ticker", "TCS", "name", "Tata Consultancy Services Ltd", "sector", "Information Technology"),
-            Map.of("ticker", "WIPRO", "name", "Wipro Ltd", "sector", "Information Technology"),
-            Map.of("ticker", "HCLTECH", "name", "HCL Technologies Ltd", "sector", "Information Technology"),
-            Map.of("ticker", "LTIM", "name", "LTIMindtree Ltd", "sector", "Information Technology"),
-            Map.of("ticker", "SUZLON", "name", "Suzlon Energy Ltd", "sector", "Renewable Green Energy"),
-            Map.of("ticker", "ITC", "name", "ITC Ltd", "sector", "FMCG / Cigarettes / Hotels"),
-            Map.of("ticker", "HINDUNILVR", "name", "Hindustan Unilever Ltd", "sector", "FMCG / Consumer Care"),
-            Map.of("ticker", "NESTLEIND", "name", "Nestlé India Ltd", "sector", "FMCG / Food Products"),
-            Map.of("ticker", "DABUR", "name", "Dabur India Ltd", "sector", "FMCG / Ayurvedic Products"),
-            Map.of("ticker", "ZOMATO", "name", "Zomato Ltd", "sector", "Consumer Tech / Quick Commerce"),
-            Map.of("ticker", "PAYTM", "name", "One97 Communications Ltd (Paytm)", "sector", "Fintech / Payments"),
-            Map.of("ticker", "CDSL", "name", "Central Depository Services Ltd", "sector", "Capital Markets / Depository"),
-            Map.of("ticker", "HAL", "name", "Hindustan Aeronautics Ltd", "sector", "Aerospace & Defense"),
-            Map.of("ticker", "BEL", "name", "Bharat Electronics Ltd", "sector", "Defense Electronics"),
-            Map.of("ticker", "IREDA", "name", "Indian Renewable Energy Development Agency", "sector", "Green Energy NBFC"),
-            Map.of("ticker", "TITAN", "name", "Titan Company Ltd", "sector", "Consumer Luxury / Jewellery"),
-            Map.of("ticker", "BAJFINANCE", "name", "Bajaj Finance Ltd", "sector", "Financial Services / NBFC"),
-            Map.of("ticker", "MARUTI", "name", "Maruti Suzuki India Ltd", "sector", "Automobile & Passenger Vehicles"),
-            Map.of("ticker", "LT", "name", "Larsen & Toubro Ltd", "sector", "Infrastructure & Engineering"),
-            Map.of("ticker", "ADANIENT", "name", "Adani Enterprises Ltd", "sector", "Conglomerate & Incubator"),
-            Map.of("ticker", "ADANIPORTS", "name", "Adani Ports and SEZ Ltd", "sector", "Ports & Logistics"),
-            Map.of("ticker", "NTPC", "name", "NTPC Ltd", "sector", "Power Generation"),
-            Map.of("ticker", "POWERGRID", "name", "Power Grid Corporation of India", "sector", "Power Transmission"),
-            Map.of("ticker", "ONGC", "name", "Oil and Natural Gas Corporation", "sector", "Oil & Gas Exploration"),
-            Map.of("ticker", "COALINDIA", "name", "Coal India Ltd", "sector", "Mining & Minerals"),
-            Map.of("ticker", "TATASTEEL", "name", "Tata Steel Ltd", "sector", "Iron & Steel"),
-            Map.of("ticker", "JSWSTEEL", "name", "JSW Steel Ltd", "sector", "Iron & Steel"),
-            Map.of("ticker", "ULTRACEMCO", "name", "UltraTech Cement Ltd", "sector", "Cement & Building Materials"),
-            Map.of("ticker", "SUNPHARMA", "name", "Sun Pharmaceutical Industries Ltd", "sector", "Pharmaceuticals"),
-            Map.of("ticker", "TRENT", "name", "Trent Ltd (Westside & Zudio)", "sector", "Retail / Apparel Fashion")
-    );
+    // Comprehensive universe of Indian equities loaded dynamically from official NSE 500
+    private final List<Map<String, String>> catalog = new ArrayList<>();
+    private final Map<String, String> aliasMap = new ConcurrentHashMap<>();
 
-    @GetMapping("/{ticker}")
-    public ResponseEntity<ScreenerDataResponse> getScreenerData(@PathVariable String ticker) {
-        return ResponseEntity.ok(screenerService.getCompanyData(ticker));
-    }
-
-    @PostMapping("/ai-analysis")
-    public ResponseEntity<AiAnalysisResponse> getAiAnalysis(@RequestBody AiAnalysisRequest request) {
-        return ResponseEntity.ok(geminiService.performDeepAnalysis(request));
-    }
-
-    @PostMapping("/ask-analyst")
-    public ResponseEntity<AskAnalystResponse> askAnalyst(@RequestBody AskAnalystRequest request) {
-        return ResponseEntity.ok(geminiService.answerAnalystQuestion(request));
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<Map<String, Object>>> searchCompanies(@RequestParam("q") String query) {
-        String qClean = query != null ? query.trim() : "";
-        if (qClean.isEmpty()) {
-            return ResponseEntity.ok(List.of());
-        }
-
-        String qLower = qClean.toLowerCase();
-        String qUpper = qClean.toUpperCase();
-
-        // Common company nickname / multi-word alias mapping to official NSE tickers
-        Map<String, String> aliasMap = new HashMap<>();
+    @PostConstruct
+    public void initCatalog() {
+        // Seed common company nickname / multi-word aliases to official NSE tickers
+        aliasMap.put("PNB", "PNB");
+        aliasMap.put("PUNJAB NATIONAL BANK", "PNB");
+        aliasMap.put("PNB BANK", "PNB");
+        aliasMap.put("PUNJAB BANK", "PNB");
         aliasMap.put("TATA", "TATAMOTORS");
         aliasMap.put("TATA MOTORS", "TATAMOTORS");
         aliasMap.put("TATA MOTOR", "TATAMOTORS");
@@ -118,24 +68,92 @@ public class ScreenerController {
         aliasMap.put("L&T", "LT");
         aliasMap.put("LARSEN", "LT");
         aliasMap.put("LARSEN & TOUBRO", "LT");
-        aliasMap.put("LARSEN AND TOUBRO", "LT");
         aliasMap.put("CDSL", "CDSL");
-        aliasMap.put("CENTRAL DEPOSITORY", "CDSL");
         aliasMap.put("BEL", "BEL");
-        aliasMap.put("BHARAT ELECTRONICS", "BEL");
         aliasMap.put("HAL", "HAL");
-        aliasMap.put("HINDUSTAN AERONAUTICS", "HAL");
         aliasMap.put("MARUTI", "MARUTI");
-        aliasMap.put("MARUTI SUZUKI", "MARUTI");
         aliasMap.put("SUN PHARMA", "SUNPHARMA");
-        aliasMap.put("SUN PHARMACEUTICAL", "SUNPHARMA");
-        aliasMap.put("NESTLE", "NESTLEIND");
-        aliasMap.put("DABUR", "DABUR");
         aliasMap.put("ZOMATO", "ZOMATO");
         aliasMap.put("PAYTM", "PAYTM");
         aliasMap.put("SUZLON", "SUZLON");
         aliasMap.put("ITC", "ITC");
         aliasMap.put("TITAN", "TITAN");
+
+        // Load 500+ NSE constituents from classpath resource
+        try {
+            ClassPathResource res = new ClassPathResource("nifty500.csv");
+            if (res.exists()) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(res.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    boolean isHeader = true;
+                    while ((line = br.readLine()) != null) {
+                        if (isHeader) {
+                            isHeader = false;
+                            continue;
+                        }
+                        String[] parts = line.split(",");
+                        if (parts.length >= 3) {
+                            String companyName = parts[0].trim();
+                            String industry = parts[1].trim();
+                            String symbol = parts[2].trim().toUpperCase();
+
+                            if (!symbol.isEmpty()) {
+                                catalog.add(Map.of(
+                                        "ticker", symbol,
+                                        "name", companyName,
+                                        "sector", industry
+                                ));
+                                aliasMap.put(symbol, symbol);
+                                aliasMap.put(companyName.toUpperCase(), symbol);
+                            }
+                        }
+                    }
+                }
+                log.info("Successfully loaded {} stocks into ScreenerController catalog from nifty500.csv", catalog.size());
+            }
+        } catch (Exception e) {
+            log.warn("Could not load nifty500.csv: {}", e.getMessage());
+        }
+
+        // Fallback seed if CSV loading was empty
+        if (catalog.isEmpty()) {
+            catalog.addAll(List.of(
+                    Map.of("ticker", "PNB", "name", "Punjab National Bank", "sector", "Public Sector Bank"),
+                    Map.of("ticker", "RELIANCE", "name", "Reliance Industries Ltd", "sector", "Oil & Gas / Retail / Telecom"),
+                    Map.of("ticker", "TATAMOTORS", "name", "Tata Motors Ltd", "sector", "Automobile & EV"),
+                    Map.of("ticker", "HDFCBANK", "name", "HDFC Bank Ltd", "sector", "Banking & Finance"),
+                    Map.of("ticker", "ICICIBANK", "name", "ICICI Bank Ltd", "sector", "Private Sector Bank"),
+                    Map.of("ticker", "SBIN", "name", "State Bank of India", "sector", "Public Sector Bank"),
+                    Map.of("ticker", "INFY", "name", "Infosys Ltd", "sector", "Information Technology"),
+                    Map.of("ticker", "TCS", "name", "Tata Consultancy Services Ltd", "sector", "Information Technology")
+            ));
+        }
+    }
+
+    @GetMapping("/{ticker}")
+    public ResponseEntity<ScreenerDataResponse> getScreenerData(@PathVariable String ticker) {
+        return ResponseEntity.ok(screenerService.getCompanyData(ticker));
+    }
+
+    @PostMapping("/ai-analysis")
+    public ResponseEntity<AiAnalysisResponse> getAiAnalysis(@RequestBody AiAnalysisRequest request) {
+        return ResponseEntity.ok(geminiService.performDeepAnalysis(request));
+    }
+
+    @PostMapping("/ask-analyst")
+    public ResponseEntity<AskAnalystResponse> askAnalyst(@RequestBody AskAnalystRequest request) {
+        return ResponseEntity.ok(geminiService.answerAnalystQuestion(request));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<Map<String, Object>>> searchCompanies(@RequestParam("q") String query) {
+        String qClean = query != null ? query.trim() : "";
+        if (qClean.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        String qLower = qClean.toLowerCase();
+        String qUpper = qClean.toUpperCase();
 
         String targetTicker = aliasMap.get(qUpper);
 
@@ -170,6 +188,7 @@ public class ScreenerController {
         // 3. Third priority: Multi-word token match across company name & sector
         String[] tokens = qLower.split("\\s+");
         for (Map<String, String> c : catalog) {
+            if (results.size() >= 15) break;
             String ticker = c.get("ticker");
             if (addedTickers.contains(ticker)) continue;
 
@@ -189,6 +208,7 @@ public class ScreenerController {
 
         // 4. Fourth priority: Loose substring match
         for (Map<String, String> c : catalog) {
+            if (results.size() >= 20) break;
             String ticker = c.get("ticker");
             if (addedTickers.contains(ticker)) continue;
 
@@ -204,20 +224,28 @@ public class ScreenerController {
         // Sort by score descending
         results.sort((a, b) -> Integer.compare((Integer) b.get("score"), (Integer) a.get("score")));
 
-        // 5. If query length >= 2 and not found in catalog, provide dynamic uncataloged option at the end
+        // 5. If query not found in catalog, fetch actual live quote dynamically from MarketDataService (NEVER hardcode 750)
         if (!addedTickers.contains(qUpper) && qUpper.length() >= 2 && results.isEmpty()) {
-            Double dynamicPrice = 750.0;
+            Double dynamicPrice = null;
+            try {
+                MarketDataService.LiveQuote liveQ = marketDataService.fetchLiveQuote(qUpper);
+                if (liveQ != null && liveQ.getCurrentPrice() != null) {
+                    dynamicPrice = liveQ.getCurrentPrice();
+                }
+            } catch (Exception ignored) {}
+
+            double finalP = dynamicPrice != null && dynamicPrice > 0 ? dynamicPrice : 100.0;
             results.add(Map.of(
                     "ticker", qUpper,
                     "name", qUpper + " Ltd",
                     "sector", "NSE / BSE Listed Equity",
-                    "currentPrice", dynamicPrice,
-                    "priceFormatted", String.format("₹%.2f", dynamicPrice),
+                    "currentPrice", finalP,
+                    "priceFormatted", String.format("₹%.2f", finalP),
                     "score", 10
             ));
         }
 
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(results.size() > 10 ? results.subList(0, 10) : results);
     }
 
     private Map<String, Object> buildSearchResult(Map<String, String> c, int score) {
@@ -230,7 +258,7 @@ public class ScreenerController {
             }
         } catch (Exception ignored) {}
 
-        double finalPrice = price != null ? price : 1000.0;
+        double finalPrice = price != null ? price : 100.0;
         Map<String, Object> map = new HashMap<>();
         map.put("ticker", ticker);
         map.put("name", c.get("name"));
