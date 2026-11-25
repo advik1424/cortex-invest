@@ -418,25 +418,28 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
                 Home
               </button>
               <button
+                onClick={() => setActiveView('screener')}
+                className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
+                  activeView === 'screener'
+                    ? 'bg-slate-900 text-white font-bold shadow-2xs'
+                    : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                }`}
+                title="Company Fundamentals, 10Y Balance Sheet, Concall, FII/DII & Fall Diagnosis"
+              >
+                <Scale className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Financials (Fundamentals)</span>
+              </button>
+              <button
                 onClick={() => setActiveView('radar')}
                 className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                   activeView === 'radar'
                     ? 'bg-slate-900 text-white font-bold shadow-2xs'
                     : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
                 }`}
+                title="Dedicated Trading Radar: Intraday (5M/15M), Swing (Daily 22 Setups), Value (Top 10)"
               >
-                <Compass className="w-3.5 h-3.5" />
-                <span>Screens</span>
-              </button>
-              <button
-                onClick={() => setActiveView('screener')}
-                className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                  activeView === 'screener'
-                    ? 'bg-slate-900 text-white font-bold shadow-2xs'
-                    : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
-                }`}
-              >
-                Financials
+                <Compass className="w-3.5 h-3.5 text-teal-600" />
+                <span>Trades Radar (Intraday / Swing)</span>
               </button>
               <button
                 onClick={() => setActiveView('chart')}

@@ -21,6 +21,10 @@ public class ScreenerDataResponse {
     private CompoundGrowth compoundedGrowth;
     private ShareholdingPattern shareholding;
     private ConcallAnalysis concallAnalysis;
+    private WhyFallingAnalysis whyFallingAnalysis;
+    private BoardMeetingAnalysis boardMeetingAnalysis;
+    private FinancialEvolution financialEvolution;
+    private InstitutionalFlowAnalysis institutionalFlowAnalysis;
 
     @Data
     @Builder
@@ -142,5 +146,51 @@ public class ScreenerDataResponse {
         private List<String> keyHighlights;
         private List<String> futureGuidance;
         private List<String> analystRedFlags;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class WhyFallingAnalysis {
+        private String clarification;
+        private String directVerdict;
+        private List<String> primaryDrivers;
+        private String fundamentalCushion;
+        private String technicalSupportFloor;
+        private String recoveryCatalysts;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BoardMeetingAnalysis {
+        private String meetingDate;
+        private String directVerdict;
+        private List<String> resolutions;
+        private String managementGuidance;
+        private String strategicTakeaway;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FinancialEvolution {
+        private List<String> improvements;
+        private List<String> deteriorationsOrHeadwinds;
+        private String capitalAllocationVerdict;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InstitutionalFlowAnalysis {
+        private String promoterHoldingStatus;
+        private String fiiActivity;
+        private String diiActivity;
+        private String institutionalThesis;
     }
 }
