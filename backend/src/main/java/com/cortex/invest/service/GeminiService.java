@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -240,15 +241,21 @@ public class GeminiService {
         String sector = request.getSector() != null ? request.getSector() : "Diversified";
         Double cmp = request.getCurrentPrice() != null ? request.getCurrentPrice() : 1000.0;
 
-        String prompt = "You are the Chief Trading Desk Strategist & Head of Institutional Execution at a Top-Tier Mumbai Broking Firm.\n"
-                + "Generate a DIRECT, ACTIONABLE TRADING SOLUTION and institutional analysis for " + companyName + " (" + ticker + ") at CMP ₹" + cmp + " in the " + sector + " sector.\n"
+        String prompt = "You are the Chief Investment Officer & Head of Institutional Equity Research at a Top-Tier Mumbai Broking & Asset Management Firm.\n"
+                + "Generate a tailored, authentic institutional analysis and disciplined execution strategy for " + companyName + " (" + ticker + ") at CMP ₹" + cmp + " in the " + sector + " sector.\n"
+                + "CRITICAL STRATEGY CALIBRATION RULES:\n"
+                + "- If this is a high-moat corporate bluechip (e.g. FMCG, IT, Banking, Infrastructure, Pharma leader): Set horizon to 'Long-Term Value (1 - 3 Years)' or 'Positional (3 - 6 Months)', action to 'LONG-TERM VALUE ACCUMULATE (Tranche Sizing)' or 'CORE VALUE BUY'. Provide tranche execution discipline.\n"
+                + "- If this stock is a confirmed breakout setup on daily technical charts: Set horizon to 'Swing Trading (5 - 15 Days)', action to 'SWING BREAKOUT SETUP', with 1:2.5 risk-reward and breakeven lock at +1.0R.\n"
+                + "- If this stock has broken balance sheet, high debt (> 1.5 D/E), or continuous losses: Set action to 'AVOID / RED FLAG' and strictly warn against capital deployment or averaging down.\n"
+                + "- If this stock is severely extended or overheated (P/E > 80x, RSI > 72): Set action to 'TRIM PROFIT / WAIT FOR HEALTHY RETEST'.\n"
+                + "DO NOT indiscriminately label every stock as 'Swing Trading (5 - 15 Days)' or 'STRONG BUY'. Calibrate genuinely to the equity's true fundamental profile.\n"
                 + "Return strictly a raw JSON object matching this schema (do NOT enclose in markdown fences, return purely raw JSON):\n"
                 + "{\n"
                 + "  \"traderSolution\": {\n"
-                + "    \"action\": \"STRONG BUY\",\n"
-                + "    \"horizon\": \"Swing Trading (5 - 15 Days)\",\n"
+                + "    \"action\": \"LONG-TERM VALUE ACCUMULATE or SWING BREAKOUT SETUP or TRIM PROFIT or AVOID / RED FLAG\",\n"
+                + "    \"horizon\": \"Long-Term Value (1 - 3 Years) or Swing Trading (5 - 15 Days) or Positional (3 - 6 Months)\",\n"
                 + "    \"convictionPct\": 88,\n"
-                + "    \"directVerdictSummary\": \"Clean swing breakout above 20 EMA with robust institutional delivery volume. Buy with tight risk for an asymmetric 1:2.6 swing setup.\",\n"
+                + "    \"directVerdictSummary\": \"Contextual institutional strategy summary tailored to fundamentals, valuation multiples, and technical levels.\",\n"
                 + "    \"currentPrice\": " + cmp + ",\n"
                 + "    \"entryRange\": \"₹" + String.format("%.1f", cmp * 0.985) + " - ₹" + String.format("%.1f", cmp * 1.005) + "\",\n"
                 + "    \"stopLoss\": " + String.format("%.1f", cmp * 0.955) + ",\n"
@@ -260,22 +267,22 @@ public class GeminiService {
                 + "    \"target3\": " + String.format("%.1f", cmp * 1.175) + ",\n"
                 + "    \"target3Pct\": \"+17.5%\",\n"
                 + "    \"riskRewardRatio\": \"1 : 2.5\",\n"
-                + "    \"positionSizeRecommendation\": \"Allocate 8% - 10% of trading capital. Enter 50% at CMP, balance 50% on minor dips into entry range.\",\n"
-                + "    \"whyBuy\": \"Price is breaking out of a multi-week consolidation base supported by aggressive delivery volumes and expanding operating margins.\",\n"
-                + "    \"riskWarning\": \"A sustained daily close below Stop Loss breaks the swing structure and invalidates the long setup.\",\n"
-                + "    \"tradeInvalidation\": \"Daily candle close below Stop Loss triggers immediate exit.\",\n"
+                + "    \"positionSizeRecommendation\": \"Disciplined capital allocation recommendation (e.g. 2-tranche protocol or 1% risk containment).\",\n"
+                + "    \"whyBuy\": \"Primary quantitative catalyst supporting this thesis.\",\n"
+                + "    \"riskWarning\": \"Primary risk factor to monitor.\",\n"
+                + "    \"tradeInvalidation\": \"Specific condition that invalidates this setup.\",\n"
                 + "    \"executionSteps\": [\n"
-                + "      \"Step 1: Enter 50% quantity around CMP (₹" + cmp + ") and keep limit order for remaining 50% at entry range low.\",\n"
-                + "      \"Step 2: On achieving Target 1, sell 50% quantity to lock in profit and immediately shift Stop Loss to Entry price (Cost).\",\n"
-                + "      \"Step 3: Hold remaining 50% for Target 2 and Target 3, trailing stop loss along with the 20-day EMA.\"\n"
+                + "      \"Step 1: Specific tranche or entry instruction.\",\n"
+                + "      \"Step 2: Specific profit-locking or risk-trailing instruction.\",\n"
+                + "      \"Step 3: Multi-quarter or runner target management.\"\n"
                 + "    ],\n"
-                + "    \"trendSignal\": \"Strong Bullish (Above 20 & 50 EMA)\",\n"
-                + "    \"momentumSignal\": \"Positive Momentum Surge\",\n"
-                + "    \"institutionalFlow\": \"Accumulation (FII/DII Buying)\",\n"
-                + "    \"overallRiskMeter\": \"Low to Moderate Risk\"\n"
+                + "    \"trendSignal\": \"Trend alignment description\",\n"
+                + "    \"momentumSignal\": \"Momentum state description\",\n"
+                + "    \"institutionalFlow\": \"Institutional accumulation or distribution behavior\",\n"
+                + "    \"overallRiskMeter\": \"Low, Moderate, or High Risk\"\n"
                 + "  },\n"
                 + "  \"convictionScore\": 8.8,\n"
-                + "  \"sentiment\": \"STRONG BUY (SWING)\",\n"
+                + "  \"sentiment\": \"HIGH CONVICTION ACCUMULATE or SWING SETUP or CAUTIOUS TRIM\",\n"
                 + "  \"targetPrice12M\": " + (cmp * 1.22) + ",\n"
                 + "  \"impliedUpside\": \"+22.4%\",\n"
                 + "  \"riskRewardRatio\": \"2.8 : 1\",\n"
@@ -390,43 +397,182 @@ public class GeminiService {
         return generateLocalForensicBackup(ticker, companyName, cmp, type);
     }
 
-    private TraderSolution buildDefaultTraderSolution(String ticker, Double cmp) {
-        double sl = Math.round(cmp * 0.955 * 10.0) / 10.0;
-        double t1 = Math.round(cmp * 1.048 * 10.0) / 10.0;
-        double t2 = Math.round(cmp * 1.105 * 10.0) / 10.0;
-        double t3 = Math.round(cmp * 1.175 * 10.0) / 10.0;
-        double eLow = Math.round(cmp * 0.985 * 10.0) / 10.0;
-        double eHigh = Math.round(cmp * 1.005 * 10.0) / 10.0;
+        private TraderSolution buildDefaultTraderSolution(String ticker, Double cmp) {
+        String sym = ticker != null ? ticker.toUpperCase().trim() : "";
+
+        Set<String> redFlags = Set.of(
+                "IDEA", "YESBANK", "JPPOWER", "SUZLON", "RCOM", "GTLINFRA", "VAKRANGEE",
+                "PCJEWELLER", "DHANI", "IBULHSGFIN", "SREINFRA", "RELINFRA", "UNITECH", "RPOWER", "MTNL"
+        );
+
+        Set<String> overextended = Set.of(
+                "TRENT", "DIXON", "KAYNES", "BHEL"
+        );
+
+        Set<String> swingLeaders = Set.of(
+                "UCOBANK", "CANBK", "BANKINDIA", "ANGELONE", "HDFCAMC", "MOTILALOFS",
+                "ASHOKLEY", "TVSMOTOR", "EICHERMOT", "ONESOURCE", "ANTHEM", "PPLPHARMA",
+                "ADANIENSOL", "ADANIGREEN", "ASTERDM", "FEDERALBNK", "IDFCFIRSTB",
+                "JSWENERGY", "COCHINSHIP", "PREMIERENE", "KFINTECH", "360ONE"
+        );
+
+        // 1. RED FLAG PROFILE: Distressed / Negative Operating Cash / High Debt
+        if (redFlags.contains(sym)) {
+            double sl = Math.round(cmp * 0.90 * 10.0) / 10.0;
+            double t1 = Math.round(cmp * 1.05 * 10.0) / 10.0;
+            double t2 = Math.round(cmp * 1.10 * 10.0) / 10.0;
+            double t3 = Math.round(cmp * 1.15 * 10.0) / 10.0;
+
+            return TraderSolution.builder()
+                    .action("🔴 AVOID / RELIEF EXIT")
+                    .horizon("Capital Preservation (High Risk)")
+                    .convictionPct(35)
+                    .directVerdictSummary("High leverage, structural debt overhang, or negative earnings. Capital preservation strictly supersedes averaging down. Avoid fresh entry; execute disciplined relief exits on technical rebounds.")
+                    .currentPrice(cmp)
+                    .entryRange("No Fresh Entry Allowed")
+                    .stopLoss(sl)
+                    .stopLossPct("-10.0%")
+                    .target1(t1)
+                    .target1Pct("+5.0% (Relief Exit 1)")
+                    .target2(t2)
+                    .target2Pct("+10.0% (Relief Exit 2)")
+                    .target3(t3)
+                    .target3Pct("+15.0% (Full Exit)")
+                    .riskRewardRatio("Negative Asymmetry")
+                    .positionSizeRecommendation("0% Allocation. Strictly block fresh capital deployment into distressed balance sheets.")
+                    .whyBuy("High forensic risk. No buy thesis. If currently holding, treat relief bounces as liquidation windows.")
+                    .riskWarning("Persistent leverage and negative operating cash flows pose severe capital impairment risk.")
+                    .invalidationRule("Any technical bounce into 20 EMA is an institutional relief exit opportunity.")
+                    .executionSteps(List.of(
+                            "Step 1: Do NOT average down or initiate fresh speculative positions.",
+                            "Step 2: On any technical rebound towards ₹" + t1 + ", liquidate 50% of holding to conserve capital.",
+                            "Step 3: Reallocate freed liquidity into fortress balance sheets with ROCE > 20% and zero debt."
+                    ))
+                    .trendSignal("Bearish Breakdown (Below 50 & 200 EMA)")
+                    .momentumSignal("Negative / Distressed Momentum")
+                    .institutionalFlow("Distribution / Institutional Trimming")
+                    .overallRiskMeter("Severe Risk (Avoid Exposure)")
+                    .build();
+        }
+
+        // 2. OVEREXTENDED MOMENTUM PROFILE: High Multiples, Parabolic Advance
+        if (overextended.contains(sym)) {
+            double sl = Math.round(cmp * 0.95 * 10.0) / 10.0;
+            double t1 = Math.round(cmp * 1.05 * 10.0) / 10.0;
+            double t2 = Math.round(cmp * 1.12 * 10.0) / 10.0;
+            double t3 = Math.round(cmp * 1.20 * 10.0) / 10.0;
+            double dipBuy = Math.round(cmp * 0.90 * 10.0) / 10.0;
+
+            return TraderSolution.builder()
+                    .action("🟡 TRIM PROFIT / RETEST PROTOCOL")
+                    .horizon("Tactical Retest / Profit Lock")
+                    .convictionPct(74)
+                    .directVerdictSummary("Extended significantly above 200 EMA with premium multiples. Unfavorable risk-reward for aggressive fresh buying. Existing holders should trim 25%-30% profits; fresh capital should wait for healthy 50 EMA retest.")
+                    .currentPrice(cmp)
+                    .entryRange("Wait for Retest: ₹" + dipBuy + " - ₹" + Math.round(cmp * 0.93 * 10.0) / 10.0)
+                    .stopLoss(sl)
+                    .stopLossPct("-5.0% (Trailing SL)")
+                    .target1(t1)
+                    .target1Pct("+5.0% (Momentum High)")
+                    .target2(t2)
+                    .target2Pct("+12.0%")
+                    .target3(t3)
+                    .target3Pct("+20.0%")
+                    .riskRewardRatio("1 : 1.2 (Sub-optimal)")
+                    .positionSizeRecommendation("Existing: Trim 25%-30% to lock gains. Fresh: Strictly wait for corrective dip into 50 EMA.")
+                    .whyBuy("Strong business fundamentals, but steep valuation multiple leaves zero safety margin against earnings misses.")
+                    .riskWarning("Sharp mean-reversion risk toward 50 EMA if quarterly volume growth shows any moderation.")
+                    .invalidationRule("Loss of 20 EMA on heavy institutional volume confirms beginning of consolidation phase.")
+                    .executionSteps(List.of(
+                            "Step 1: Do NOT chase breakouts at current extended multiples.",
+                            "Step 2: Lock 25%-30% profit at CMP (₹" + cmp + ") and trail stop loss tightly to ₹" + sl + ".",
+                            "Step 3: Fresh accumulation strictly contingent on price cooling off to demand retest zone (₹" + dipBuy + ")."
+                    ))
+                    .trendSignal("Overextended Bullish (Parabolic Advance)")
+                    .momentumSignal("Overbought / Peaking")
+                    .institutionalFlow("Partial Profit Booking / Divergence")
+                    .overallRiskMeter("Elevated Valuation Risk")
+                    .build();
+        }
+
+        // 3. SWING RADAR SETUP PROFILE: High Momentum, 21/44 EMA Pullbacks
+        if (swingLeaders.contains(sym)) {
+            double sl = Math.round(cmp * 0.955 * 10.0) / 10.0;
+            double t1 = Math.round(cmp * 1.055 * 10.0) / 10.0;
+            double t2 = Math.round(cmp * 1.115 * 10.0) / 10.0;
+            double t3 = Math.round(cmp * 1.180 * 10.0) / 10.0;
+            double eLow = Math.round(cmp * 0.985 * 10.0) / 10.0;
+            double eHigh = Math.round(cmp * 1.010 * 10.0) / 10.0;
+
+            return TraderSolution.builder()
+                    .action("🟢 SWING BREAKOUT SETUP")
+                    .horizon("Swing Trading (5 - 15 Days)")
+                    .convictionPct(88)
+                    .directVerdictSummary("Active institutional swing setup above 21/44 EMA with expanding turnover. Enter inside buy zone with strict stop loss discipline and breakeven lock at +1.0R.")
+                    .currentPrice(cmp)
+                    .entryRange("₹" + eLow + " - ₹" + eHigh)
+                    .stopLoss(sl)
+                    .stopLossPct("-4.5%")
+                    .target1(t1)
+                    .target1Pct("+5.5% (Lock 50% & BE)")
+                    .target2(t2)
+                    .target2Pct("+11.5% (Runner)")
+                    .target3(t3)
+                    .target3Pct("+18.0%")
+                    .riskRewardRatio("1 : 2.5")
+                    .positionSizeRecommendation("Allocate 6% - 8% of portfolio. Risk strictly capped at 1% of portfolio equity (₹5,000 per trade rule).")
+                    .whyBuy("Bullish swing pullback/breakout above 21/44 EMA with positive delivery volume and favorable 1:2.5 risk-reward.")
+                    .riskWarning("Sustained daily close below ₹" + sl + " breaks the short-term swing structure.")
+                    .invalidationRule("Daily candle close below ₹" + sl + " triggers immediate rule-based exit.")
+                    .executionSteps(List.of(
+                            "Step 1: Enter inside buy zone (₹" + cmp + ") with strict hard stop loss at ₹" + sl + ".",
+                            "Step 2: On achieving Target 1 (₹" + t1 + "), book 50% profit and trail Stop Loss to Breakeven (+0.1R).",
+                            "Step 3: Ride remaining 50% runner towards Target 2 (₹" + t2 + ") trailing with 21 EMA."
+                    ))
+                    .trendSignal("Bullish Swing Setup (Above 21/44 EMA)")
+                    .momentumSignal("High Positive Momentum")
+                    .institutionalFlow("Institutional Accumulation")
+                    .overallRiskMeter("Controlled Swing Risk (1:2.5 R:R)")
+                    .build();
+        }
+
+        // 4. DEFAULT MOAT / VALUE PROFILE (TCS, HDFCBANK, INFY, RELIANCE, ITC, & Bluechips)
+        // Authentic Long-Term Value & Compounding Protocol
+        double sl = Math.round(cmp * 0.88 * 10.0) / 10.0;
+        double t1 = Math.round(cmp * 1.20 * 10.0) / 10.0;
+        double t2 = Math.round(cmp * 1.45 * 10.0) / 10.0;
+        double t3 = Math.round(cmp * 1.75 * 10.0) / 10.0;
+        double tranche2Dip = Math.round(cmp * 0.94 * 10.0) / 10.0;
 
         return TraderSolution.builder()
-                .action("STRONG BUY")
-                .horizon("Swing Trading (5 - 15 Days)")
-                .convictionPct(88)
-                .directVerdictSummary("Clean swing breakout above 20 EMA with positive institutional delivery. Enter inside buy zone with strict stop loss at ₹" + sl + ".")
+                .action("💎 VALUE ACCUMULATE (TRANCHE SIZING)")
+                .horizon("Long-Term Compounding (1 - 3 Years)")
+                .convictionPct(92)
+                .directVerdictSummary("Institutional compounding franchise with proven pricing power and fortress balance sheet. Deploy systematic tranche sizing on dips rather than short-term swing stops.")
                 .currentPrice(cmp)
-                .entryRange("₹" + eLow + " - ₹" + eHigh)
+                .entryRange("Tranche 1: ₹" + cmp + " | Tranche 2: ₹" + tranche2Dip)
                 .stopLoss(sl)
-                .stopLossPct("-4.5%")
+                .stopLossPct("-12.0% (Structural Floor)")
                 .target1(t1)
-                .target1Pct("+4.8%")
+                .target1Pct("+20.0% (1-Yr DCF)")
                 .target2(t2)
-                .target2Pct("+10.5%")
+                .target2Pct("+45.0% (2-Yr Fair Value)")
                 .target3(t3)
-                .target3Pct("+17.5%")
-                .riskRewardRatio("1 : 2.5")
-                .positionSizeRecommendation("Allocate 8% - 10% of portfolio. Enter 50% at CMP (₹" + cmp + "), balance 50% on pullback into ₹" + eLow + ".")
-                .whyBuy("Bullish momentum structure breaking out above 20 EMA with high delivery volume and expanding margins.")
-                .riskWarning("Sustained daily close below ₹" + sl + " breaks the short-term swing structure.")
-                .invalidationRule("Daily candle close below ₹" + sl + " triggers immediate exit.")
+                .target3Pct("+75.0% (3-Yr Compounding)")
+                .riskRewardRatio("1 : 3.8 Compounding Asymmetry")
+                .positionSizeRecommendation("Allocate 12% - 15% of core portfolio. Deploy Tranche 1 (50%) at CMP, Tranche 2 (50%) on 5%-8% market pullbacks.")
+                .whyBuy("Durable competitive moat, high ROE/ROCE return ratios, and steady multi-year earnings compounding.")
+                .riskWarning("Near-term sector multiple compression or macro headwind may induce temporary consolidation.")
+                .invalidationRule("Break below multi-year 200-week EMA (₹" + sl + ") triggers review of fundamental thesis.")
                 .executionSteps(List.of(
-                        "Step 1: Enter 50% quantity at current market price (₹" + cmp + ") and add remaining 50% if price tests ₹" + eLow + ".",
-                        "Step 2: On achieving Target 1 (₹" + t1 + "), book 50% profit and trail Stop Loss to your entry price for a completely risk-free trade.",
-                        "Step 3: Ride remaining 50% runners towards Target 2 (₹" + t2 + ") and Target 3 (₹" + t3 + ") trailing with 20 EMA."
+                        "Step 1: Deploy Tranche 1 (50% position) at CMP (₹" + cmp + ").",
+                        "Step 2: Deploy Tranche 2 (balance 50%) if market volatility offers dip into ₹" + tranche2Dip + " near 200 SMA.",
+                        "Step 3: Hold through quarterly noise targeting 1-year DCF target (₹" + t1 + ") and 3-year compounding target (₹" + t2 + ")."
                 ))
-                .trendSignal("Strong Bullish (Above 20 & 50 EMA)")
-                .momentumSignal("High Positive Momentum")
-                .institutionalFlow("Accumulation (Institutional Buying)")
-                .overallRiskMeter("Low to Moderate Risk")
+                .trendSignal("Long-Term Structural Bull (Above 200 EMA)")
+                .momentumSignal("Steady Compounding Accumulation")
+                .institutionalFlow("Long-Term FII/DII Core Accumulation")
+                .overallRiskMeter("Low Risk (Fortress Franchise)")
                 .build();
     }
 
