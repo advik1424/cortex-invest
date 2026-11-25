@@ -11,7 +11,14 @@ import {
 
 export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials }) {
   const { user, loginWithGoogle, setAuthModalOpen } = useAuth();
-  const [holdings, setHoldings] = useState([]);
+  const [holdings, setHoldings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cortex_portfolio_holdings');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState(null);
@@ -61,19 +68,37 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
     setLoading(true);
     try {
       const res = await portfolioApi.getHoldings();
-      setHoldings(res.data);
+      if (res.data && res.data.length > 0) {
+        setHoldings(res.data);
+        localStorage.setItem('cortex_portfolio_holdings', JSON.stringify(res.data));
+      } else {
+        const saved = localStorage.getItem('cortex_portfolio_holdings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.length > 0) {
+            setHoldings(parsed);
+            // Bidirectionally populate backend DB so data is never lost across browser cache clears
+            parsed.forEach((h) => {
+              const { id, ...cleanH } = h;
+              portfolioApi.addHolding(cleanH).catch(() => {});
+            });
+          }
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.warn('Network error, restoring from localStorage:', err);
+      const saved = localStorage.getItem('cortex_portfolio_holdings');
+      if (saved) {
+        try { setHoldings(JSON.parse(saved)); } catch {}
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchHoldings();
-      fetchAudit();
-    }
+    fetchHoldings();
+    fetchAudit();
   }, [user]);
 
   // Click outside to dismiss ticker dropdown in modal
@@ -184,34 +209,58 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
   const handleAddHolding = async (e) => {
     e.preventDefault();
     if (!newHolding.ticker || !newHolding.quantity || !newHolding.avgBuyPrice) return;
+    
+    const cleanHolding = {
+      ticker: (newHolding.ticker || '').toUpperCase().trim(),
+      companyName: newHolding.companyName || newHolding.ticker,
+      quantity: parseInt(newHolding.quantity) || 1,
+      avgBuyPrice: parseFloat(newHolding.avgBuyPrice) || 0,
+      currentMarketPrice: parseFloat(newHolding.currentMarketPrice) || parseFloat(newHolding.avgBuyPrice) || 0,
+      sector: newHolding.sector || 'Diversified',
+      category: newHolding.category || 'Compounder',
+    };
+
+    setShowAddModal(false);
+    setNewHolding({
+      ticker: '',
+      companyName: '',
+      quantity: '',
+      avgBuyPrice: '',
+      currentMarketPrice: '',
+      sector: 'Banking & Financials',
+      category: 'Compounder',
+    });
+
     try {
-      await portfolioApi.addHolding({
-        ...newHolding,
-        quantity: parseInt(newHolding.quantity) || 1,
-        avgBuyPrice: parseFloat(newHolding.avgBuyPrice) || 0,
-        currentMarketPrice: parseFloat(newHolding.currentMarketPrice) || parseFloat(newHolding.avgBuyPrice) || 0,
+      const res = await portfolioApi.addHolding(cleanHolding);
+      const savedItem = res?.data || { ...cleanHolding, id: Date.now() };
+      setHoldings((prev) => {
+        const updated = [...prev, savedItem];
+        localStorage.setItem('cortex_portfolio_holdings', JSON.stringify(updated));
+        return updated;
       });
-      setShowAddModal(false);
-      setNewHolding({
-        ticker: '',
-        companyName: '',
-        quantity: '',
-        avgBuyPrice: '',
-        currentMarketPrice: '',
-        sector: 'Banking & Financials',
-        category: 'Compounder',
-      });
-      fetchHoldings();
       fetchAudit();
     } catch (err) {
-      console.error(err);
+      console.warn('Backend sync deferred, saving locally:', err);
+      const fallbackItem = { ...cleanHolding, id: Date.now() };
+      setHoldings((prev) => {
+        const updated = [...prev, fallbackItem];
+        localStorage.setItem('cortex_portfolio_holdings', JSON.stringify(updated));
+        return updated;
+      });
     }
   };
 
   const handleDelete = async (id) => {
+    // Instant local deletion
+    setHoldings((prev) => {
+      const updated = prev.filter((h) => h.id !== id);
+      localStorage.setItem('cortex_portfolio_holdings', JSON.stringify(updated));
+      return updated;
+    });
+
     try {
       await portfolioApi.deleteHolding(id);
-      fetchHoldings();
       fetchAudit();
     } catch (err) {
       console.error(err);
@@ -231,24 +280,19 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
   };
 
   // Discuss Stock Handlers
-  const openDiscussModal = (holding) => {
-    setActiveDiscussHolding(holding);
-    setDiscussQuery('');
-    setDiscussResponse(null);
-  };
-
-  const handleAskStockDiscussion = async (customQuestion) => {
-    if (!activeDiscussHolding) return;
-    const queryToAsk = customQuestion || discussQuery || 'Aapka is holding par kya verdict hai? Should I hold, book profit, or average?';
+  const handleAskStockDiscussion = async (customQuestion, explicitHolding) => {
+    const targetHolding = explicitHolding || activeDiscussHolding;
+    if (!targetHolding) return;
+    const queryToAsk = customQuestion || discussQuery || 'Aapka is holding par kya verdict hai? Why is this stock lagging and what is the recovery horizon?';
     setDiscussLoading(true);
     try {
       const payload = {
-        ticker: activeDiscussHolding.ticker,
-        companyName: activeDiscussHolding.companyName,
-        quantity: activeDiscussHolding.quantity,
-        avgBuyPrice: activeDiscussHolding.avgBuyPrice,
-        currentMarketPrice: activeDiscussHolding.currentMarketPrice,
-        sector: activeDiscussHolding.sector,
+        ticker: targetHolding.ticker,
+        companyName: targetHolding.companyName,
+        quantity: targetHolding.quantity,
+        avgBuyPrice: targetHolding.avgBuyPrice,
+        currentMarketPrice: targetHolding.currentMarketPrice,
+        sector: targetHolding.sector,
         userQuery: queryToAsk,
       };
       const res = await portfolioApi.discussStock(payload);
@@ -260,74 +304,15 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
     }
   };
 
-  // If user is not authenticated with Google, show the Auth Gate
-  if (!user) {
-    return (
-      <div className="max-w-[800px] mx-auto py-12 px-4">
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-8 sm:p-14 shadow-lg text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-[#0F766E]"></div>
-          
-          <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-200/80 flex items-center justify-center mx-auto mb-6 shadow-xs">
-            <Lock className="w-8 h-8 text-[#0F766E]" />
-          </div>
+  const openDiscussModal = (holding) => {
+    setActiveDiscussHolding(holding);
+    setDiscussQuery('');
+    setDiscussResponse(null);
+    handleAskStockDiscussion('What is the forensic institutional diagnosis for this holding? Detail why the stock is underperforming, how long to wait, and specific concall catalysts to track.', holding);
+  };
 
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F766E] bg-teal-50 border border-teal-200/80 px-3 py-1 rounded-full inline-block mb-3.5">
-            Private Portfolio
-          </span>
-
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Sign In to Access Your Portfolio
-          </h2>
-
-          <p className="text-sm text-slate-600 max-w-lg mx-auto mt-3 leading-relaxed">
-            Track real-time NSE/BSE stock holdings, performance analytics, and dual-engine research on your private positions.
-          </p>
-
-          {/* Benefits Feature Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8 text-left">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 mb-2" />
-              <h4 className="text-xs font-bold text-slate-900">Private Ledger</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Real-time CMP synchronization across NSE/BSE with isolated storage.</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-              <MessageSquare className="w-5 h-5 text-[#0F766E] mb-2" />
-              <h4 className="text-xs font-bold text-slate-900">Holding Intelligence</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Deep dive into fundamentals, valuation multiples, and quarterly updates.</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-              <Activity className="w-5 h-5 text-teal-600 mb-2" />
-              <h4 className="text-xs font-bold text-slate-900">Portfolio Health Audit</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">Stress test impact of market corrections and sector diversification.</p>
-            </div>
-          </div>
-
-          {/* Sign In Call to Action */}
-          <div className="max-w-md mx-auto space-y-3">
-            <button
-              onClick={() => loginWithGoogle()}
-              className="w-full py-3 px-5 rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-3 transition-all shadow-xs"
-            >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-
-            <button
-              onClick={() => setAuthModalOpen(true)}
-              className="text-xs text-slate-500 hover:text-slate-800 font-semibold underline underline-offset-4"
-            >
-              Sign in with email
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // User session state (non-blocking for seamless local persistence)
+  const isGuest = !user;
 
   // Calculations
   const totalInvested = holdings.reduce((sum, h) => sum + (h.avgBuyPrice * h.quantity), 0);
@@ -355,24 +340,53 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
 
   return (
     <div className="space-y-6 max-w-[1320px] mx-auto py-2">
-      {/* User Session Banner */}
-      <div className="bg-teal-50/70 border border-teal-200/70 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3">
-          <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full border border-teal-600 shadow-2xs" />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900">{user.name}</span>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="w-2.5 h-2.5" /> Google Verified
+      {/* User Session Banner (Supports both Google and Persistent Guest mode) */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+        {user ? (
+          <div className="flex items-center gap-3">
+            <img src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80'} alt={user.name} className="w-7 h-7 rounded-full border border-teal-600 shadow-2xs" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900">{user.name}</span>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-2.5 h-2.5" /> Google Cloud Synced
+                </span>
+              </div>
+              <span className="text-slate-500 font-mono text-[11px]">{user.email}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900">Private Local Portfolio Session</span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
+                  Persisted on Device
+                </span>
+              </div>
+              <span className="text-slate-500 text-[11px]">
+                Added positions are preserved on refresh. Sign in with Google anytime to back up to the cloud.
               </span>
             </div>
-            <span className="text-slate-500 font-mono text-[11px]">{user.email}</span>
           </div>
-        </div>
-        <div className="text-[11px] text-teal-800 flex items-center gap-2 font-medium">
-          <span>Active Encrypted Session</span>
-          <span>•</span>
-          <span>Click <b>"Analyze Position"</b> on any holding to evaluate allocation and risk</span>
+        )}
+
+        <div className="flex items-center gap-2.5">
+          {!user && (
+            <button
+              onClick={() => loginWithGoogle()}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Sign In with Google</span>
+            </button>
+          )}
+          <span className="text-[11px] text-slate-400 font-medium hidden md:inline-block">
+            Auto-Sync Active
+          </span>
         </div>
       </div>
 
@@ -799,6 +813,163 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
       </div>
       )}
 
+      {/* ============================================================== */}
+      {/* STEP-BY-STEP PER-STOCK ACTIONABLE ADVICE & DECISION ENGINE     */}
+      {/* ============================================================== */}
+      {auditData?.auditedHoldings?.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Target className="w-5 h-5 text-[#0F766E]" />
+                <span>Step-by-Step Per-Stock Decision Engine (Hold / Average / Buy / Sell)</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Transparent institutional analysis for each holding explaining WHY to hold, average, or exit, plus critical support &amp; resistance levels.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {auditData.auditedHoldings.map((stock) => {
+              const isProfit = stock.pnlPercentage >= 0;
+              const isRedFlag = stock.isAveragingBlocked || stock.systemRecommendation?.includes('EXIT');
+              const isAverage = stock.systemRecommendation?.includes('AVERAGE') || stock.systemRecommendation?.includes('ACCUMULATE');
+              const isTrim = stock.systemRecommendation?.includes('TRIM');
+
+              const supportLvl = stock.supportLevel || (stock.sma200 ? stock.sma200.toFixed(1) : (stock.currentPrice * 0.94).toFixed(1));
+              const resistanceLvl = stock.resistanceLevel || (stock.fiftyTwoWeekHigh ? stock.fiftyTwoWeekHigh.toFixed(1) : (stock.currentPrice * 1.15).toFixed(1));
+
+              return (
+                <div key={stock.symbol} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3.5 hover:border-slate-300 transition-all">
+                  {/* Stock Header */}
+                  <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-base text-slate-900">{stock.symbol}</span>
+                        <span className="text-[11px] font-semibold text-slate-500">({stock.company})</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                          {stock.sector}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs">
+                        <span className="text-slate-500 font-mono">Qty: <strong className="text-slate-800">{stock.quantity}</strong></span>
+                        <span>•</span>
+                        <span className="text-slate-500 font-mono">Avg: ₹{stock.avgBuyPrice?.toFixed(1)}</span>
+                        <span>•</span>
+                        <span className="text-slate-900 font-mono font-bold">CMP: ₹{stock.currentPrice?.toFixed(1)}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className={`text-xs font-bold font-mono ${isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {isProfit ? '+' : ''}{stock.pnlPercentage?.toFixed(1)}% (₹{stock.pnlAmount?.toFixed(0)})
+                      </div>
+                      <span className={`inline-block mt-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        isAverage
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          : isRedFlag
+                          ? 'bg-rose-50 text-rose-800 border-rose-300'
+                          : isTrim
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
+                      }`}>
+                        {stock.systemRecommendation}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Why Section */}
+                  <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1 text-xs">
+                    <span className="font-bold text-slate-900 flex items-center gap-1.5 text-[11px]">
+                      <Info className="w-3.5 h-3.5 text-[#0F766E]" />
+                      <span>Kyun karein? (Clear Decision Rationale):</span>
+                    </span>
+                    <p className="text-slate-700 leading-relaxed font-sans">
+                      {stock.whyReason || stock.actionPlan}
+                    </p>
+                  </div>
+
+                  {/* Critical Support & Resistance Levels to Wait For */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="p-2.5 bg-emerald-50/50 border border-emerald-200/80 rounded-xl">
+                      <span className="text-[10px] font-sans font-bold text-emerald-800 block uppercase">
+                        Support Floor (Wait Level)
+                      </span>
+                      <span className="text-sm font-bold text-emerald-900 mt-0.5 block">
+                        ₹{supportLvl}
+                      </span>
+                      <span className="text-[10px] font-sans text-emerald-700 block mt-0.5">
+                        200-SMA Institutional Bedrock
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 bg-blue-50/50 border border-blue-200/80 rounded-xl">
+                      <span className="text-[10px] font-sans font-bold text-blue-800 block uppercase">
+                        Resistance Hurdle
+                      </span>
+                      <span className="text-sm font-bold text-blue-900 mt-0.5 block">
+                        ₹{resistanceLvl}
+                      </span>
+                      <span className="text-[10px] font-sans text-blue-700 block mt-0.5">
+                        52W High / Trend Ceiling
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Corporate Activities & Concall Guidance */}
+                  {stock.corporateActivitySummary && (
+                    <div className="p-2.5 bg-teal-50/40 border border-teal-200/60 rounded-xl text-xs space-y-0.5">
+                      <span className="text-[10px] font-bold text-teal-900 uppercase block font-sans">
+                        Company Structure &amp; Concall Activities:
+                      </span>
+                      <p className="text-slate-700 font-sans leading-relaxed text-[11px]">
+                        {stock.corporateActivitySummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Tranche Action Card */}
+                  {stock.suggestedAddQty > 0 && (
+                    <div className="p-2.5 bg-emerald-100/70 border border-emerald-300 rounded-xl flex items-center justify-between gap-3 text-xs">
+                      <div>
+                        <span className="font-bold text-emerald-950 font-sans block text-[11px]">
+                          Tranche Playbook: Add +{stock.suggestedAddQty} Shares @ CMP
+                        </span>
+                        <span className="text-[10px] text-emerald-800 font-sans">
+                          Lowers your average cost from ₹{stock.avgBuyPrice?.toFixed(1)} ➔ ₹{stock.newEstimatedAvgPrice?.toFixed(1)}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-800 text-white rounded font-mono font-bold text-[10px]">
+                        TRANCHE READY
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 1-Click Discuss Button */}
+                  <div className="pt-1 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => openDiscussModal({
+                        ticker: stock.symbol,
+                        companyName: stock.company,
+                        quantity: stock.quantity,
+                        avgBuyPrice: stock.avgBuyPrice,
+                        currentMarketPrice: stock.currentPrice,
+                        sector: stock.sector
+                      })}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer font-sans"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Deep AI Analysis for {stock.symbol}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Stress-Test & Rebalancing Blueprint */}
       {diagnosis && (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-6 shadow-sm">
@@ -920,10 +1091,11 @@ export default function PortfolioLight({ onSelectTicker, onNavigateToFinancials 
               </span>
               <div className="flex flex-wrap gap-2">
                 {[
-                  'Should I hold, book partial profits, or trail stop loss at current levels?',
-                  'Fundamental risk assessment: Is the underlying business thesis intact?',
-                  '12-Month fair value target and key downside support levels',
-                  'Capital efficiency: How does this stock compare to sector peers?'
+                  'Kyun is company mein averaging karein ya hold karein?',
+                  'Kyun fall aa raha hai aur company ke structural reason kya hain?',
+                  'Kaun se critical support floor aur resistance level hain jiska wait karein?',
+                  'Recent meeting & concall mein kya discuss hua aur future outlook kya hai?',
+                  'Should I hold, book partial profits, or average down at CMP?'
                 ].map((q, idx) => (
                   <button
                     key={idx}

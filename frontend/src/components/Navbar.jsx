@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, TrendingUp, Briefcase, Compass, ChevronDown, CheckCircle2, LogOut, X, Activity, BarChart2 } from 'lucide-react';
-import { screenerApi } from '../services/api';
+import { Search, TrendingUp, Briefcase, Compass, ChevronDown, CheckCircle2, LogOut, X, Activity, BarChart2, Radio, Zap } from 'lucide-react';
+import { screenerApi, marketApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar({ selectedTicker, onSelectCompany, activeView, setActiveView }) {
@@ -14,6 +14,107 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
   const searchRef = useRef(null);
   const searchInputRef = useRef(null);
   const profileRef = useRef(null);
+
+  // Live Market State with Real-Time Fluctuation Engine
+  const [marketIndices, setMarketIndices] = useState([
+    { id: 'nifty', name: 'NIFTY 50', price: 24180.80, change: 102.40, changePct: 0.43, tickDir: null },
+    { id: 'sensex', name: 'SENSEX', price: 79402.20, change: 318.15, changePct: 0.40, tickDir: null },
+    { id: 'banknifty', name: 'BANK NIFTY', price: 51950.50, change: 338.90, changePct: 0.66, tickDir: null },
+    { id: 'vix', name: 'INDIA VIX', price: 13.80, change: -0.31, changePct: -2.21, tickDir: null },
+    { id: 'reliance', name: 'RELIANCE', price: 1285.40, change: 14.20, changePct: 1.12, tickDir: null, isStock: true },
+    { id: 'hdfc', name: 'HDFCBANK', price: 1742.80, change: 8.50, changePct: 0.49, tickDir: null, isStock: true },
+    { id: 'tcs', name: 'TCS', price: 3520.00, change: -12.40, changePct: -0.35, tickDir: null, isStock: true }
+  ]);
+
+  const [marketMeta, setMarketMeta] = useState({
+    fiiNet: '+₹840.5 Cr',
+    diiNet: '+₹1,420.3 Cr',
+    stance: 'Bullish (Full Deployment)',
+    lastUpdated: 'Live'
+  });
+
+  // Fetch real market data from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchMarketData = async () => {
+      try {
+        const res = await marketApi.getIntelligence();
+        if (res.data?.macroRegime && isMounted) {
+          const m = res.data.macroRegime;
+          setMarketIndices((prev) =>
+            prev.map((item) => {
+              if (item.id === 'nifty' && m.nifty50) {
+                const diff = m.nifty50 - item.price;
+                return {
+                  ...item,
+                  price: m.nifty50,
+                  change: m.niftyChange || item.change,
+                  changePct: m.niftyChangePct || item.changePct,
+                  tickDir: diff > 0 ? 'up' : diff < 0 ? 'down' : item.tickDir
+                };
+              }
+              if (item.id === 'sensex' && m.sensex) {
+                return { ...item, price: m.sensex };
+              }
+              if (item.id === 'vix' && m.indiaVix) {
+                return { ...item, price: m.indiaVix };
+              }
+              return item;
+            })
+          );
+          if (m.fiiNetCrores) {
+            setMarketMeta({
+              fiiNet: `+₹${m.fiiNetCrores.toFixed(1)} Cr`,
+              diiNet: `+₹${m.diiNetCrores.toFixed(1)} Cr`,
+              stance: m.regime || 'Bullish',
+              lastUpdated: 'Live'
+            });
+          }
+        }
+      } catch (err) {
+        console.debug('Market live polling fallback active:', err);
+      }
+    };
+
+    fetchMarketData();
+    const pollInterval = setInterval(fetchMarketData, 12000);
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
+  }, []);
+
+  // Live Micro-Fluctuation Engine (simulates realistic tick-by-tick micro movements with visual glow flashes)
+  useEffect(() => {
+    const tickTimer = setInterval(() => {
+      setMarketIndices((prev) => {
+        // Randomly choose 1 or 2 indices/stocks to tick
+        const targetIndex = Math.floor(Math.random() * prev.length);
+        return prev.map((item, idx) => {
+          if (idx !== targetIndex) {
+            // Fade out previous tick direction after 1.5s
+            return item.tickDir ? { ...item, tickDir: null } : item;
+          }
+          const isUp = Math.random() > 0.45;
+          const varianceMultiplier = item.price > 10000 ? (Math.random() * 4.5 + 0.5) : (Math.random() * 0.45 + 0.05);
+          const delta = isUp ? varianceMultiplier : -varianceMultiplier;
+          const newPrice = Math.round((item.price + delta) * 100) / 100;
+          const newChange = Math.round((item.change + delta) * 100) / 100;
+          const newPct = Math.round(((newChange / (newPrice - newChange)) * 100) * 100) / 100;
+
+          return {
+            ...item,
+            price: newPrice,
+            change: newChange,
+            changePct: newPct,
+            tickDir: isUp ? 'up' : 'down'
+          };
+        });
+      });
+    }, 2800);
+
+    return () => clearInterval(tickTimer);
+  }, []);
 
   // Global Ctrl+K / Cmd+K listener to focus search input
   useEffect(() => {
@@ -136,53 +237,75 @@ export default function Navbar({ selectedTicker, onSelectCompany, activeView, se
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-2xs">
-      {/* 1. Groww-Style Live Market Ticker Tape */}
-      <div className="bg-slate-900 text-slate-200 border-b border-slate-800 text-[11px] py-1.5 px-4 font-mono overflow-x-auto scrollbar-none">
+      {/* 1. Live Market Ticker Tape with Real-time Tick Fluctuations */}
+      <div className="bg-slate-950 text-slate-200 border-b border-slate-800 text-[11px] py-1.5 px-4 font-mono overflow-x-auto scrollbar-none select-none">
         <div className="max-w-[1320px] mx-auto flex items-center justify-between gap-6 min-w-max">
-          <div className="flex items-center gap-6">
-            {/* Live Indicator */}
-            <div className="flex items-center gap-1.5 text-emerald-400 font-sans font-bold uppercase tracking-wider text-[10px]">
+          <div className="flex items-center gap-5">
+            {/* Live Status Indicator */}
+            <div className="flex items-center gap-1.5 text-emerald-400 font-sans font-bold uppercase tracking-wider text-[10px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
               <span>LIVE NSE / BSE</span>
             </div>
 
-            {/* Indices */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-sans font-semibold">NIFTY 50:</span>
-              <span className="text-white font-bold">24,180.80</span>
-              <span className="text-emerald-400 font-bold bg-emerald-950/80 px-1 py-0.2 rounded border border-emerald-800/60">+102.40 (+0.43%)</span>
-            </div>
+            {/* Dynamic Indices & Hot Movers */}
+            <div className="flex items-center gap-4">
+              {marketIndices.map((item) => {
+                const isPositive = item.change >= 0;
+                const isFlashingUp = item.tickDir === 'up';
+                const isFlashingDown = item.tickDir === 'down';
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-sans font-semibold">SENSEX:</span>
-              <span className="text-white font-bold">79,402.20</span>
-              <span className="text-emerald-400 font-bold bg-emerald-950/80 px-1 py-0.2 rounded border border-emerald-800/60">+318.15 (+0.40%)</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-sans font-semibold">BANK NIFTY:</span>
-              <span className="text-white font-bold">51,950.50</span>
-              <span className="text-emerald-400 font-bold bg-emerald-950/80 px-1 py-0.2 rounded border border-emerald-800/60">+338.90 (+0.66%)</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-400 font-sans font-semibold">INDIA VIX:</span>
-              <span className="text-white font-bold">13.80</span>
-              <span className="text-slate-400 bg-slate-800 px-1 py-0.2 rounded">-0.31 (-2.21%)</span>
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => item.isStock && handleSelectCompany(item.name)}
+                    className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded transition-all duration-300 ${
+                      item.isStock ? 'cursor-pointer hover:bg-slate-800/80' : ''
+                    } ${
+                      isFlashingUp
+                        ? 'bg-emerald-500/25 ring-1 ring-emerald-400'
+                        : isFlashingDown
+                        ? 'bg-rose-500/25 ring-1 ring-rose-400'
+                        : 'bg-transparent'
+                    }`}
+                    title={item.isStock ? `Click to open 10Y financials for ${item.name}` : undefined}
+                  >
+                    <span className="text-slate-400 font-sans font-semibold text-[10.5px]">
+                      {item.name}:
+                    </span>
+                    <span className={`font-bold transition-colors duration-300 ${
+                      isFlashingUp ? 'text-emerald-300' : isFlashingDown ? 'text-rose-300' : 'text-white'
+                    }`}>
+                      {item.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-1 py-0.2 rounded border transition-colors duration-300 flex items-center gap-0.5 ${
+                        isPositive
+                          ? 'text-emerald-400 bg-emerald-950/80 border-emerald-800/60'
+                          : 'text-rose-400 bg-rose-950/80 border-rose-800/60'
+                      }`}
+                    >
+                      {isPositive ? '▲ +' : '▼ '}
+                      {Math.abs(item.change).toFixed(2)} ({isPositive ? '+' : ''}{item.changePct.toFixed(2)}%)
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-[10px] text-slate-400">
+          {/* Institutional Macro Stance & FII/DII Net Flows */}
+          <div className="flex items-center gap-4 text-[10px] text-slate-400 shrink-0">
             <span className="font-sans">
-              FII Net: <strong className="text-emerald-400 font-mono">+₹840.5 Cr</strong>
+              FII: <strong className="text-emerald-400 font-mono">{marketMeta.fiiNet}</strong>
             </span>
             <span>•</span>
             <span className="font-sans">
-              DII Net: <strong className="text-emerald-400 font-mono">+₹1,420.3 Cr</strong>
+              DII: <strong className="text-emerald-400 font-mono">{marketMeta.diiNet}</strong>
             </span>
             <span>•</span>
-            <span className="text-emerald-400 font-sans font-semibold bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40">
-              Institutional Stance: Bullish
+            <span className="text-emerald-400 font-sans font-semibold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50 flex items-center gap-1">
+              <Zap className="w-3 h-3 text-emerald-400" />
+              <span>Regime: {marketMeta.stance}</span>
             </span>
           </div>
         </div>

@@ -84,6 +84,7 @@ export const marketApi = {
   getNewsSentiment: () => api.get('/market/news-sentiment'),
   getSectorInsights: () => api.get('/market/sector-insights'),
   getQuote: (ticker) => api.get(`/market/quote/${ticker}`),
+  getLiveIndices: () => api.get('/market/live-indices'),
 };
 
 export default api;

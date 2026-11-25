@@ -27,6 +27,11 @@ public class MarketController {
         return ResponseEntity.ok(marketDataService.fetchLiveQuote(ticker));
     }
 
+    @GetMapping("/live-indices")
+    public ResponseEntity<List<MarketDataService.LiveQuote>> getLiveIndices() {
+        return ResponseEntity.ok(marketDataService.getLiveIndices());
+    }
+
     @GetMapping("/intelligence")
     public ResponseEntity<MarketIntelligenceDto> getMarketIntelligence() {
         return ResponseEntity.ok(marketIntelligenceService.getMarketIntelligence());

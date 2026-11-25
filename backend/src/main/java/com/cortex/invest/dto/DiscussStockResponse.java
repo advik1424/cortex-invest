@@ -23,8 +23,11 @@ public class DiscussStockResponse {
     private Double pnlPercentage;
 
     // AI Strategic Verdict
-    private String holdingAction;             // "HOLD (COMPOUNDER)" | "TRIM 50% & LOCK GAINS" | "AVERAGE ON DIP" | "IMMEDIATE EXIT (DEAD CAPITAL)"
+    private String holdingAction;             // "HOLD (COMPOUNDER)" | "ACCUMULATE ON DIP (TRANCHE 2)" | "TRIM 50% & LOCK GAINS" | "RELIEF EXIT"
     private String actionSummary;             // One-line punchy verdict
+    private String underperformanceReason;   // Why the stock is down / root cause analysis
+    private String patienceHorizon;           // How long to wait / recovery timeline (e.g. 2-3 Quarters)
+    private List<String> newsAndCatalystsToTrack; // Specific news, concall metrics & data points to monitor
     private String userQuery;                 // User's original question
     private String userQueryAnswer;           // Direct solution to user's specific dilemma
     private Double targetPrice12M;            // Expected 12-month upside target

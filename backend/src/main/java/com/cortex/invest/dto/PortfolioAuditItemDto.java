@@ -36,4 +36,10 @@ public class PortfolioAuditItemDto {
     private Double newEstimatedAvgPrice;   // Revised Average Price
     private String actionPlan;             // Deep institutional advice plan
     private Boolean isAveragingBlocked;    // True if D/E > 1.8 or loss-making (Anti-Capital Destruction)
+
+    // Per-Stock Deep Intelligence
+    private Double supportLevel;           // Support Floor level to wait for
+    private Double resistanceLevel;        // Resistance Ceiling / Target hurdle
+    private String whyReason;              // Clear, deep explanation of WHY (Hold / Buy / Average / Exit)
+    private String corporateActivitySummary; // Recent corporate actions, concall takeaways & news catalyst
 }

@@ -32,4 +32,10 @@ public class IntradayRadarStockDto {
     private String squareOffTime;      // "3:15 PM IST (Auto Square-off)"
     private String intradayThesis;     // Technical catalyst explanation
     private String ruleWarning;        // "Strict 3:15 PM square-off. Never carry overnight on leverage."
+
+    // News Factor & Momentum Intelligence
+    private String newsSentiment;      // "VERY BULLISH", "BULLISH CATALYST", "MOMENTUM FLOW"
+    private Double newsSentimentScore; // 0.85
+    private String newsHeadline;       // Breaking catalyst headline
+    private Double newsWeightagePct;   // 45.0% news factor weight
 }

@@ -53,4 +53,10 @@ public class SwingRadarStockDto {
     private Double sharpeRatio;            // Historical Sharpe Ratio (e.g. 2.15)
     private Integer maxConsecutiveLosses;  // Max losing streak across 15 years (e.g. 2)
     private Double kellyCriterionPct;      // Kelly sizing recommendation (e.g. 14.5%)
+
+    // News Factor & Institutional Catalyst Intelligence
+    private String newsSentiment;      // "BULLISH CATALYST", "HIGH CONVICTION", "ACCUMULATION FLOW"
+    private Double newsSentimentScore; // 0.88
+    private String newsHeadline;       // Breaking theme / earnings catalyst
+    private Double newsWeightagePct;   // 40.0%
 }

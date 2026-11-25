@@ -16,6 +16,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -183,8 +185,29 @@ public class MarketDataService {
     }
 
     private String resolveSymbol(String ticker) {
-        if (ticker.contains(".") || ticker.equalsIgnoreCase("AAPL") || ticker.equalsIgnoreCase("NVDA")) return ticker;
-        return ticker + ".NS";
+        String clean = ticker != null ? ticker.trim().toUpperCase() : "";
+        if (clean.equals("NIFTY 50") || clean.equals("NIFTY") || clean.equals("^NSEI")) return "^NSEI";
+        if (clean.equals("SENSEX") || clean.equals("^BSESN")) return "^BSESN";
+        if (clean.equals("BANK NIFTY") || clean.equals("BANKNIFTY") || clean.equals("^NSEBANK")) return "^NSEBANK";
+        if (clean.equals("INDIA VIX") || clean.equals("INDIAVIX") || clean.equals("^INDIAVIX")) return "^INDIAVIX";
+        if (clean.contains(".") || clean.equalsIgnoreCase("AAPL") || clean.equalsIgnoreCase("NVDA")) return clean;
+        return clean + ".NS";
+    }
+
+    public List<LiveQuote> getLiveIndices() {
+        String[] tickers = {"NIFTY 50", "SENSEX", "BANK NIFTY", "INDIA VIX", "RELIANCE", "HDFCBANK", "TCS", "TATAMOTORS", "BEL"};
+        List<LiveQuote> result = new ArrayList<>();
+        for (String t : tickers) {
+            try {
+                LiveQuote q = fetchLiveQuote(t);
+                if (q != null) {
+                    result.add(q);
+                }
+            } catch (Exception e) {
+                log.debug("Failed to fetch live quote for {}: {}", t, e.getMessage());
+            }
+        }
+        return result;
     }
 
     private double round(double val) {

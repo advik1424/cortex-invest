@@ -58,4 +58,10 @@ public class LongTermValueStockDto {
     private Double altmanZScore;              // Altman Z-Score (> 3.0 safe zone)
     private Double dcfFairValue;              // DCF intrinsic valuation
     private Double fiveYearMultiplier;        // 5-Year historical compounding multiplier (e.g. 2.8x)
+
+    // News & Corporate Concall Catalyst Intelligence
+    private String newsSentiment;      // "BULLISH (LONG-TERM)", "STRUCTURAL ACCUMULATION"
+    private Double newsSentimentScore; // 0.82
+    private String newsHeadline;       // Management guidance / concall highlight
+    private Double newsWeightagePct;   // 35.0%
 }

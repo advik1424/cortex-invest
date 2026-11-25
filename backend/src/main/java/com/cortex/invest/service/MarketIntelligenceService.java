@@ -31,14 +31,20 @@ public class MarketIntelligenceService {
         double niftyChg = (niftyQuote != null && niftyQuote.getChange() != null) ? niftyQuote.getChange() : 118.5;
         double niftyChgPct = (niftyQuote != null && niftyQuote.getChangePercent() != null) ? niftyQuote.getChangePercent() : 0.49;
 
+        MarketDataService.LiveQuote sensexQuote = marketDataService.fetchLiveQuote("SENSEX");
+        double sensexCmp = (sensexQuote != null && sensexQuote.getCurrentPrice() != null) ? sensexQuote.getCurrentPrice() : 79850.0;
+
+        MarketDataService.LiveQuote vixQuote = marketDataService.fetchLiveQuote("INDIA VIX");
+        double vixCmp = (vixQuote != null && vixQuote.getCurrentPrice() != null) ? vixQuote.getCurrentPrice() : 13.8;
+
         MacroRegime macro = MacroRegime.builder()
-                .regime("BULLISH (Full Size Deployment)")
+                .regime(niftyChg >= 0 ? "BULLISH (Full Size Deployment)" : "MEASURED (Defensive Positioning)")
                 .nifty50(niftyCmp)
                 .niftyChange(niftyChg)
                 .niftyChangePct(niftyChgPct)
-                .sensex(79850.0)
-                .indiaVix(13.8)
-                .vixRegime("Low Volatility Zone (< 15.0)")
+                .sensex(sensexCmp)
+                .indiaVix(vixCmp)
+                .vixRegime(vixCmp < 15.0 ? "Low Volatility Zone (< 15.0)" : "Elevated Volatility Zone (>= 15.0)")
                 .fiiNetCrores(840.50)
                 .diiNetCrores(1420.25)
                 .institutionalFlowVerdict("Net Institutional Inflow: +₹2,260 Cr (DII Absorption Active)")
